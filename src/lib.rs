@@ -1,3 +1,4 @@
+pub mod metadata;
 pub mod store;
 
 pub fn add(left: usize, right: usize) -> usize {

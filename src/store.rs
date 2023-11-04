@@ -6,7 +6,7 @@ pub type KeyRangeValues = (String, Range<usize>, Vec<u8>);
 /// Read only store interface
 pub trait ReadableStore {
     /// Retrieve the value associated with a given key
-    async fn get(&self, key: &str) -> Result<(), String>;
+    async fn get(&self, key: &str) -> Result<Vec<u8>, String>;
 
     /// Retrieve possibly partial values from given key_ranges.
     ///
@@ -15,7 +15,7 @@ pub trait ReadableStore {
     ///
     /// Returns a list of values, in the order of the key_ranges,
     /// may contain null/none for missing keys
-    async fn get_partial_values(&self, keys: &[KeyRange]) -> Result<(), String>;
+    async fn get_partial_values(&self, keys: &[KeyRange]) -> Result<Vec<u8>, String>;
 }
 
 /// Listable store interface
@@ -41,7 +41,7 @@ pub trait ListableStore {
 /// Writable store interface
 pub trait WriteableStore {
     /// Store a (key, value) pair.
-    async fn set(&self, key: &str, value: ()) -> Result<(), String>;
+    async fn set(&self, key: &str, value: &[u8]) -> Result<(), String>;
 
     /// Store values at a given key, starting at byte range_start.
     ///
