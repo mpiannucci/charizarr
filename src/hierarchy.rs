@@ -8,20 +8,22 @@ where
     T: ReadableStore + ListableStore + WriteableStore,
 {
     store: &'a T,
-    metadata: ArrayMetadata,
-    root_path: String,
+    pub meta: ArrayMetadata,
+    pub path: String,
 }
 
 impl<'a, T> Array<'a, T>
 where
     T: ReadableStore + ListableStore + WriteableStore,
 {
-    pub fn new(store: &'a T, metadata: ArrayMetadata, root_path: Option<String>) -> Self {
-        Self {
-            store,
-            metadata,
-            root_path: root_path.unwrap_or_else(|| "".to_string()),
-        }
+    pub async fn open(store: &'a T, path: Option<String>) -> Result<Self, String> {
+        let path = path.unwrap_or_else(|| "".to_string());
+        let metadata_path = format!("{path}/zarr.json");
+        let raw_metadata = store.get(&metadata_path).await?;
+        let meta = serde_json::from_slice::<ArrayMetadata>(&raw_metadata)
+            .map_err(|e| format!("Failed to parse group metadata: {e}"))?;
+
+        Ok(Self { store, meta, path })
     }
 }
 
@@ -30,19 +32,21 @@ where
     T: ReadableStore + ListableStore + WriteableStore,
 {
     store: &'a T,
-    // metadata: GroupMetadata,
-    root_path: String,
+    pub meta: GroupMetadata,
+    pub path: String,
 }
 
 impl<'a, T> Group<'a, T>
 where
     T: ReadableStore + ListableStore + WriteableStore,
 {
-    pub async fn open(store: &'a T, root_path: Option<String>) -> Result<Self, String> {
-        Ok(Self {
-            store,
-            // metadata,
-            root_path: root_path.unwrap_or_else(|| "".to_string()),
-        })
+    pub async fn open(store: &'a T, path: Option<String>) -> Result<Self, String> {
+        let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
+        let metadata_path = format!("{path}zarr.json");
+        let raw_metadata = store.get(&metadata_path).await?;
+        let meta = serde_json::from_slice::<GroupMetadata>(&raw_metadata)
+            .map_err(|e| format!("Failed to parse group metadata: {e}"))?;
+
+        Ok(Self { store, meta, path })
     }
 }

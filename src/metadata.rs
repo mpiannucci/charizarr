@@ -8,13 +8,13 @@ use crate::data_type::CoreDataType;
 
 pub type Configuration = HashMap<String, Value>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Extension {
-    name: String,
-    configuration: Option<Configuration>,
+    pub name: String,
+    pub configuration: Option<Configuration>,
 }
 
-#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Clone)]
 #[repr(u8)]
 pub enum ZarrFormat {
     V1 = 1,
@@ -22,34 +22,34 @@ pub enum ZarrFormat {
     V3 = 3,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum DataType {
     Core(CoreDataType),
     Extension(Extension),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ArrayMetadata {
-    zarr_format: ZarrFormat,
-    node_type: String,
-    shape: Vec<usize>,
-    data_type: DataType,
-    chunk_grid: Extension,
-    chunk_key_encoding: Extension,
+    pub zarr_format: ZarrFormat,
+    pub node_type: String,
+    pub shape: Vec<usize>,
+    pub data_type: DataType,
+    pub chunk_grid: Extension,
+    pub chunk_key_encoding: Extension,
     // TODO: Actual fill values
-    fill_value: Value,
-    codecs: Vec<Extension>,
-    atttributes: Option<HashMap<String, Value>>,
-    storage_transformers: Option<Vec<Extension>>,
-    dimension_names: Option<Vec<String>>,
+    pub fill_value: Value,
+    pub codecs: Vec<Extension>,
+    pub attributes: Option<HashMap<String, Value>>,
+    pub storage_transformers: Option<Vec<Extension>>,
+    pub dimension_names: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct GroupMetadata {
-    zarr_format: ZarrFormat,
-    node_type: String,
-    atttributes: Option<HashMap<String, Value>>,
+    pub zarr_format: ZarrFormat,
+    pub node_type: String,
+    pub attributes: Option<HashMap<String, Value>>,
 }
 
 #[cfg(test)]
