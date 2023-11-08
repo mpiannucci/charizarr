@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+use crate::data_type::CoreDataType;
+
 pub type Configuration = HashMap<String, Value>;
 
 #[derive(Serialize, Deserialize)]
@@ -23,7 +25,7 @@ pub enum ZarrFormat {
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DataType {
-    Defined(String),
+    Core(CoreDataType),
     Extension(Extension),
 }
 
@@ -100,10 +102,10 @@ mod tests {
         assert_eq!(array_metadata.shape, vec![10000, 1000]);
 
         let data_type = match array_metadata.data_type {
-            DataType::Defined(ref dtype) => dtype,
+            DataType::Core(ref dtype) => dtype,
             _ => panic!("Expected defined data type"),
         };
-        assert_eq!(data_type, "float64");
+        assert_eq!(*data_type, CoreDataType::Float64);
 
         let chunk_grid = match array_metadata.chunk_grid {
             Extension {
