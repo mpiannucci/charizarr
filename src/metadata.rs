@@ -8,7 +8,7 @@ use crate::data_type::CoreDataType;
 
 pub type Configuration = HashMap<String, Value>;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Extension {
     pub name: String,
     pub configuration: Option<Configuration>,
@@ -22,14 +22,14 @@ pub enum ZarrFormat {
     V3 = 3,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged)]
 pub enum DataType {
     Core(CoreDataType),
     Extension(Extension),
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ArrayMetadata {
     pub zarr_format: ZarrFormat,
     pub node_type: String,
