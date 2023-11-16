@@ -1,7 +1,7 @@
 use ndarray::prelude::*;
 use num::Complex;
 
-use crate::{metadata::DataType, data_type::CoreDataType};
+use crate::{data_type::CoreDataType, metadata::DataType};
 
 pub enum Chunk {
     Bool(ArrayD<bool>),
@@ -20,3 +20,28 @@ pub enum Chunk {
     Raw8(ArrayD<u8>),
     Raw16(ArrayD<u16>),
 }
+
+macro_rules! into_chunk {
+    ($d_name:expr, $d_type:ty) => {
+        impl From<Vec<$d_type>> for Chunk {
+            fn from(value: Vec<$d_type>) -> Self {
+                let arr = Array::from_vec(value);
+                $d_name(arr.into_dyn())
+            }
+        }
+    };
+}
+
+into_chunk!(Chunk::Bool, bool);
+into_chunk!(Chunk::Int8, i8);
+into_chunk!(Chunk::Int16, i16);
+into_chunk!(Chunk::Int32, i32);
+into_chunk!(Chunk::Int64, i64);
+into_chunk!(Chunk::UInt8, u8);
+into_chunk!(Chunk::UInt16, u16);
+into_chunk!(Chunk::UInt32, u32);
+into_chunk!(Chunk::UInt64, u64);
+into_chunk!(Chunk::Float32, f32);
+into_chunk!(Chunk::Float64, f64);
+into_chunk!(Chunk::Complex64, Complex<f32>);
+into_chunk!(Chunk::Complex128, Complex<f64>);
