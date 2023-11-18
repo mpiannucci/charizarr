@@ -105,7 +105,7 @@ impl ByteToArrayCodec for EndianCodec {
             Chunk::Raw16(_) => todo!("This is ignored for now"),
         };
 
-        Err("Not implemented".to_string())
+        Ok(encoded)
     }
 
     fn decode(
@@ -140,5 +140,33 @@ impl ByteToArrayCodec for EndianCodec {
         };
 
         Ok(decoded)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ndarray::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn test_endian_codec() {
+        let codec = EndianCodec::new();
+
+        let config = serde_json::json!({
+            "endian": "little"
+        });
+
+        let i_array = Array::from_vec(vec![1, 2, 3, 4]).into_dyn();
+        let data = Chunk::Int32(i_array.clone());
+
+        let encoded = codec.encode(&CoreDataType::Int32, config.clone(), &data).unwrap();
+        let decoded = codec.decode(&CoreDataType::Int32, config, &encoded).unwrap();
+        let o_array = match decoded {
+            Chunk::Int32(arr) => Some(arr),
+            _ => None,
+        }.unwrap();
+
+        assert_eq!(i_array, o_array);
     }
 }

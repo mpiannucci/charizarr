@@ -1,8 +1,7 @@
 use ndarray::prelude::*;
 use num::Complex;
 
-use crate::{data_type::CoreDataType, metadata::DataType};
-
+#[derive(Debug, Clone, PartialEq)]
 pub enum Chunk {
     Bool(ArrayD<bool>),
     Int8(ArrayD<i8>),
