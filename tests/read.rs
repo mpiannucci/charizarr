@@ -1,4 +1,4 @@
-use charizarr::metadata::{DataType, ZarrFormat};
+use charizarr::{metadata::{DataType, ZarrFormat}, codecs::endian::EndianCodec, codec::ByteToArrayCodec};
 
 #[tokio::test]
 async fn test_read() {
@@ -36,7 +36,12 @@ async fn test_read() {
         DataType::Core(charizarr::data_type::CoreDataType::Int16)
     );
 
-    // We can also get the same array from the group
-    let array = group.get_array("3d.contiguous.i2").await.unwrap();
+    // We can also get arrays from the group
+    let array = group.get_array("1d.contiguous.raw.i2").await.unwrap();
     assert_eq!(&array.meta.zarr_format, &ZarrFormat::V3);
+
+    // Lets read a chunk manually for now
+    let chunk = array.get_raw_chunk("c/0").await.unwrap();
+    let decoder = EndianCodec::new();
+    //let decoded = decoder.decode(&array.meta.data_type, serde_json::json!({"endian": "little"}), &chunk).unwrap();
 }
