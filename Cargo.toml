@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+flate2 = "1.0.28"
 ndarray = "0.15.6"
 num = "0.4"
 serde = { version = "1.0.190", features = ["derive"] }

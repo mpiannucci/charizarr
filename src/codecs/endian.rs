@@ -23,7 +23,7 @@ pub struct EndianCodecConfig {
 pub struct EndianCodec {}
 
 impl EndianCodec {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {}
     }
 
@@ -77,7 +77,7 @@ macro_rules! encode_endian_chunk {
 impl ByteToArrayCodec for EndianCodec {
     fn encode(
         &self,
-        data_type: &CoreDataType,
+        _data_type: &CoreDataType,
         config: Value,
         data: &Chunk,
     ) -> Result<Vec<u8>, String> {
