@@ -1,5 +1,6 @@
-use charizarr::{metadata::{DataType, ZarrFormat}, codecs::endian::EndianCodec, codec::ByteToArrayCodec, chunk::Chunk};
+use charizarr::{metadata::{DataType, ZarrFormat}, codecs::{endian::EndianCodec, gzip::GZipCodec, blosc::BloscCodec}, codec::{ByteToArrayCodec, ByteToByteCodec}, chunk::Chunk};
 use ndarray::Array;
+use serde_json::Value;
 
 #[tokio::test]
 async fn test_read() {
@@ -52,12 +53,46 @@ async fn test_read() {
         return;
     };
 
-    let decoded = decoder.decode(data_type, serde_json::json!({"endian": "little"}), &chunk).unwrap();
+    let config = array.meta.codecs.first().as_ref().unwrap().configuration.clone().unwrap();
+    let decoded = decoder.decode(data_type, config, &chunk).unwrap();
     let Chunk::Int16(array_chunk) = decoded else {
         assert!(false);
         return;
     };
 
     let expected = Array::from_vec(vec![1i16, 2, 3, 4]).into_dyn();
+    assert_eq!(array_chunk, expected);
+
+    // We can also read compressed chunks
+    // First lets try gzip
+    let array = group.get_array("1d.contiguous.gzip.i2").await.unwrap();
+    assert_eq!(&array.meta.codecs.len(), &2);
+
+    let chunk = array.get_raw_chunk("c/0").await.unwrap();
+    let gzip_decoder = GZipCodec::new();
+    let config = array.meta.codecs.last().as_ref().unwrap().configuration.clone().unwrap();
+    let raw_chunk = gzip_decoder.decode(data_type, config, &chunk).unwrap();
+    let config = array.meta.codecs.first().as_ref().unwrap().configuration.clone().unwrap();
+    let decoded_chunk = decoder.decode(data_type, config, &raw_chunk).unwrap();
+    let Chunk::Int16(array_chunk) = decoded_chunk else {
+        assert!(false);
+        return;
+    };
+    assert_eq!(array_chunk, expected);
+
+    // Then we'll try blosc
+    let array = group.get_array("1d.contiguous.blosc.i2").await.unwrap();
+    assert_eq!(&array.meta.codecs.len(), &2);
+
+    let chunk = array.get_raw_chunk("c/0").await.unwrap();
+    let blosc_decoder = BloscCodec::new();
+    let config = array.meta.codecs.last().as_ref().unwrap().configuration.clone().unwrap();
+    let raw_chunk = blosc_decoder.decode(data_type, config, &chunk).unwrap();
+    let config = array.meta.codecs.first().as_ref().unwrap().configuration.clone().unwrap();
+    let decoded_chunk = decoder.decode(data_type, config, &raw_chunk).unwrap();
+    let Chunk::Int16(array_chunk) = decoded_chunk else {
+        assert!(false);
+        return;
+    };
     assert_eq!(array_chunk, expected);
 }

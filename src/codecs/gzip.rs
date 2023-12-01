@@ -46,17 +46,17 @@ impl NamedCodec for GZipCodec {
 }
 
 impl ByteToByteCodec for GZipCodec {
-    fn encode(&self, _data_type: &CoreDataType, _config: Value, data: &[u8]) -> Result<Vec<u8>, String> {
-        let mut out = Vec::new();
-        let _ = GzDecoder::new(data).read_to_end(&mut out).map_err(|e| e.to_string())?;
-        Ok(out)
-    }
-
-    fn decode(&self, _data_type: &CoreDataType, config: Value, data: &[u8]) -> Result<Vec<u8>, String> {
+    fn encode(&self, _data_type: &CoreDataType, config: Value, data: &[u8]) -> Result<Vec<u8>, String> {
         let level = self.parse_config(config)?.into();
         let mut encoder = GzEncoder::new(Vec::new(), level);
         encoder.write_all(data).map_err(|e| e.to_string())?;
         let out = encoder.finish().map_err(|e| e.to_string())?;
+        Ok(out)
+    }
+
+    fn decode(&self, _data_type: &CoreDataType, _config: Value, data: &[u8]) -> Result<Vec<u8>, String> {
+        let mut out = Vec::new();
+        let _ = GzDecoder::new(data).read_to_end(&mut out).map_err(|e| e.to_string())?;
         Ok(out)
     }
 }

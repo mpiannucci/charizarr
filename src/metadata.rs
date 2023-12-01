@@ -6,7 +6,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::data_type::CoreDataType;
 
-pub type Configuration = HashMap<String, Value>;
+pub type Configuration = Value;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Extension {
