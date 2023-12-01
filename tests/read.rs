@@ -1,4 +1,5 @@
-use charizarr::{metadata::{DataType, ZarrFormat}, codecs::endian::EndianCodec, codec::ByteToArrayCodec};
+use charizarr::{metadata::{DataType, ZarrFormat}, codecs::endian::EndianCodec, codec::ByteToArrayCodec, chunk::Chunk};
+use ndarray::Array;
 
 #[tokio::test]
 async fn test_read() {
@@ -39,9 +40,24 @@ async fn test_read() {
     // We can also get arrays from the group
     let array = group.get_array("1d.contiguous.raw.i2").await.unwrap();
     assert_eq!(&array.meta.zarr_format, &ZarrFormat::V3);
+    assert_eq!(&array.meta.codecs[0].name, &"endian");
 
     // Lets read a chunk manually for now
     let chunk = array.get_raw_chunk("c/0").await.unwrap();
     let decoder = EndianCodec::new();
-    //let decoded = decoder.decode(&array.meta.data_type, serde_json::json!({"endian": "little"}), &chunk).unwrap();
+
+    // At the moment this is the only way to extract the core data type... needs to improve
+    let DataType::Core(data_type) = &array.meta.data_type else {
+        assert!(false);
+        return;
+    };
+
+    let decoded = decoder.decode(data_type, serde_json::json!({"endian": "little"}), &chunk).unwrap();
+    let Chunk::Int16(array_chunk) = decoded else {
+        assert!(false);
+        return;
+    };
+
+    let expected = Array::from_vec(vec![1i16, 2, 3, 4]).into_dyn();
+    assert_eq!(array_chunk, expected);
 }
