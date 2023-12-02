@@ -15,7 +15,12 @@ pub trait ReadableStore {
     ///
     /// Returns a list of values, in the order of the key_ranges,
     /// may contain null/none for missing keys
-    async fn get_partial_values(&self, keys: &[KeyRange]) -> Result<Vec<u8>, String>;
+    /// 
+    /// By default this is not implemented, and it is optional for stores to 
+    /// implement.
+    async fn get_partial_values(&self, _keys: &[KeyRange]) -> Result<Vec<u8>, String> {
+        Err("Not implemented".to_string())
+    }
 }
 
 /// Listable store interface
@@ -46,7 +51,12 @@ pub trait WriteableStore {
     /// Store values at a given key, starting at byte range_start.
     ///
     /// must not specify overlapping ranges for the same key
-    async fn set_partial_values(&self, key_start_values: &[KeyRangeValues]) -> Result<(), String>;
+    /// 
+    /// By default this is not implemented, and it is optional for stores to
+    /// implement.
+    async fn set_partial_values(&self, _key_start_values: &[KeyRangeValues]) -> Result<(), String> {
+        Err("Not implemented".to_string())
+    }
 
     /// Erase the given key/value pair from the store.
     async fn erase(&self, key: &str) -> Result<(), String>;

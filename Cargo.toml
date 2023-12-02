@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 blosc = { version = "0.1", optional = true }
 flate2 = { version = "1.0.28", optional = true }
+futures = "0.3.29"
 ndarray = "0.15.6"
 num = "0.4"
 serde = { version = "1.0.190", features = ["derive"] }
