@@ -30,6 +30,29 @@ where
         let chunk_path = format!("{path}{key}", path = self.path);
         self.store.get(&chunk_path).await
     }
+
+    /// Get the shape of the entire array
+    pub fn shape(&self) -> Vec<usize> {
+        self.meta.shape.to_vec()
+    }
+
+    /// Get the shape of a single chunk
+    /// TODO: Should this take into account grid type?
+    pub fn chunk(&self) -> Vec<usize> {
+        self
+            .meta
+            .chunk_grid
+            .configuration
+            .as_ref()
+            .unwrap()
+            .get("chunk_shape")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_u64().unwrap() as usize)
+            .collect::<Vec<usize>>()
+    }
 }
 
 pub struct Group<'a, T>

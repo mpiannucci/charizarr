@@ -67,6 +67,8 @@ async fn test_read() {
     // First lets try gzip
     let array = group.get_array("1d.contiguous.gzip.i2").await.unwrap();
     assert_eq!(&array.meta.codecs.len(), &2);
+    assert_eq!(array.shape(), vec![4]);
+    assert_eq!(array.chunk(), vec![4]);
 
     let chunk = array.get_raw_chunk("c/0").await.unwrap();
     let gzip_decoder = GZipCodec::new();
