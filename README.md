@@ -7,15 +7,7 @@ with rust and async.
 
 ## Development
 
-This crate requires nightly or beta rust to build until async/await is released to the stable channel.
-
-```bash
-# For beta
-rustup default beta
-
-# For nightly
-rustup default nightly
-```
+This crate requires rust 1.75 or later because it uses async traits.
 
 ## Features
 
