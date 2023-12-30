@@ -1,6 +1,5 @@
 use charizarr::{metadata::{DataType, ZarrFormat}, codecs::{endian::EndianCodec, gzip::GZipCodec, blosc::BloscCodec}, codec::{ByteToArrayCodec, ByteToByteCodec}, chunk::Chunk};
 use ndarray::Array;
-use serde_json::Value;
 
 #[tokio::test]
 async fn test_read() {

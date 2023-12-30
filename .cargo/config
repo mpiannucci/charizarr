@@ -1,0 +1,3 @@
+[build]
+[target.'cfg(target_os = "macos")']
+rustflags = ["-L/opt/homebrew/lib"]
