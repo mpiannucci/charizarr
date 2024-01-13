@@ -1,4 +1,4 @@
-pub mod endian;
+pub mod bytes;
 #[cfg(feature = "blosc")]
 pub mod blosc;
 #[cfg(feature = "gzip")]

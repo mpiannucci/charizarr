@@ -1,4 +1,4 @@
-use charizarr::{metadata::{DataType, ZarrFormat}, codecs::{endian::EndianCodec, gzip::GZipCodec, blosc::BloscCodec}, codec::{ByteToArrayCodec, ByteToByteCodec}, chunk::Chunk};
+use charizarr::{metadata::{DataType, ZarrFormat}, codecs::{bytes::BytesCodec, gzip::GZipCodec, blosc::BloscCodec}, codec::{ByteToArrayCodec, ByteToByteCodec}, chunk::Chunk};
 use ndarray::Array;
 
 #[tokio::test]
@@ -40,11 +40,11 @@ async fn test_read() {
     // We can also get arrays from the group
     let array = group.get_array("1d.contiguous.raw.i2").await.unwrap();
     assert_eq!(&array.meta.zarr_format, &ZarrFormat::V3);
-    assert_eq!(&array.meta.codecs[0].name, &"endian");
+    assert_eq!(&array.meta.codecs[0].name, &"bytes");
 
     // Lets read a chunk manually for now
     let chunk = array.get_raw_chunk("c/0").await.unwrap();
-    let decoder = EndianCodec::new();
+    let decoder = BytesCodec::new();
 
     // At the moment this is the only way to extract the core data type... needs to improve
     let DataType::Core(data_type) = &array.meta.data_type else {

@@ -15,26 +15,26 @@ enum Endian {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EndianCodecConfig {
+pub struct BytesCodecConfig {
     endian: Endian,
 }
 
 /// Adapted from https://zarr-specs.readthedocs.io/en/latest/v3/codecs/endian/v1.0.html
-pub struct EndianCodec {}
+pub struct BytesCodec {}
 
-impl EndianCodec {
+impl BytesCodec {
     pub fn new() -> Self {
         Self {}
     }
 
-    fn parse_config(&self, config: Value) -> Result<EndianCodecConfig, String> {
-        serde_json::from_value::<EndianCodecConfig>(config).map_err(|e| e.to_string())
+    fn parse_config(&self, config: Value) -> Result<BytesCodecConfig, String> {
+        serde_json::from_value::<BytesCodecConfig>(config).map_err(|e| e.to_string())
     }
 }
 
-impl NamedCodec for EndianCodec {
+impl NamedCodec for BytesCodec {
     fn resolve_name(&self) -> String {
-        "endian".to_string()
+        "bytes".to_string()
     }
 }
 
@@ -74,7 +74,7 @@ macro_rules! encode_endian_chunk {
     };
 }
 
-impl ByteToArrayCodec for EndianCodec {
+impl ByteToArrayCodec for BytesCodec {
     fn encode(
         &self,
         _data_type: &CoreDataType,
@@ -150,8 +150,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_endian_codec() {
-        let codec = EndianCodec::new();
+    fn test_bytes_codec() {
+        let codec = BytesCodec::new();
 
         let config = serde_json::json!({
             "endian": "little"
