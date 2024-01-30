@@ -6,4 +6,4 @@
 
 [zarrita js 3.0 impl](https://github.com/manzt/zarrita.js)
 
-[zarrita python 3.0 impl](https://github.com/alimanfoo/zarrita)
+[zarrita python 3.0 impl](https://github.com/scalableminds/zarrita)
