@@ -7,3 +7,5 @@
 [zarrita js 3.0 impl](https://github.com/manzt/zarrita.js)
 
 [zarrita python 3.0 impl](https://github.com/scalableminds/zarrita)
+
+[pass features to child crates](https://stackoverflow.com/a/40021750)
