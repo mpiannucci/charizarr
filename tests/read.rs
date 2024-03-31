@@ -8,7 +8,7 @@ async fn test_read() {
     let store = charizarr::stores::FileSystemStore::new(path);
 
     // Read in a group
-    let group = charizarr::hierarchy::Group::open(&store, None)
+    let group = charizarr::group::Group::open(&store, None)
         .await
         .unwrap();
 
@@ -26,7 +26,7 @@ async fn test_read() {
     assert_eq!(name, &"data.zarr");
 
     // Read in an array
-    let array = charizarr::hierarchy::Array::open(&store, Some("3d.contiguous.i2".to_string()))
+    let array = charizarr::array::Array::open(&store, Some("3d.contiguous.i2".to_string()), None)
         .await
         .unwrap();
 
@@ -38,7 +38,7 @@ async fn test_read() {
     );
 
     // We can also get arrays from the group
-    let array = group.get_array("1d.contiguous.raw.i2").await.unwrap();
+    let array = group.get_array("1d.contiguous.raw.i2", None).await.unwrap();
     assert_eq!(&array.meta.zarr_format, &ZarrFormat::V3);
     assert_eq!(&array.meta.codecs[0].name, &"bytes");
 
@@ -64,7 +64,7 @@ async fn test_read() {
 
     // We can also read compressed chunks
     // First lets try gzip
-    let array = group.get_array("1d.contiguous.gzip.i2").await.unwrap();
+    let array = group.get_array("1d.contiguous.gzip.i2", None).await.unwrap();
     assert_eq!(&array.meta.codecs.len(), &2);
     assert_eq!(array.shape(), vec![4]);
     assert_eq!(array.chunk(), vec![4]);
@@ -82,7 +82,7 @@ async fn test_read() {
     assert_eq!(array_chunk, expected);
 
     // Then we'll try blosc
-    let array = group.get_array("1d.contiguous.blosc.i2").await.unwrap();
+    let array = group.get_array("1d.contiguous.blosc.i2", None).await.unwrap();
     assert_eq!(&array.meta.codecs.len(), &2);
 
     let chunk = array.get_raw_chunk("c/0").await.unwrap();

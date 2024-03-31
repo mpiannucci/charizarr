@@ -20,6 +20,7 @@ pub struct BytesCodecConfig {
 }
 
 /// Adapted from https://zarr-specs.readthedocs.io/en/latest/v3/codecs/endian/v1.0.html
+#[derive(Clone, Debug)]
 pub struct BytesCodec {}
 
 impl BytesCodec {

@@ -27,6 +27,7 @@ impl From<GZipCodecConfig> for GzCompression {
 }
 
 /// Adapted from https://zarr-specs.readthedocs.io/en/latest/v3/codecs/gzip/v1.0.html
+#[derive(Clone, Debug)]
 pub struct GZipCodec {}
 
 impl GZipCodec {

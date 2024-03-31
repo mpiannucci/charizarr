@@ -104,6 +104,7 @@ impl From<BloscCodecConfig> for Context {
 }
 
 /// Adapted from https://zarr-specs.readthedocs.io/en/latest/v3/codecs/blosc/v1.0.html
+#[derive(Clone, Debug)]
 pub struct BloscCodec {}
 
 impl BloscCodec {

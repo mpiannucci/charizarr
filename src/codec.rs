@@ -1,11 +1,14 @@
+use std::sync::Arc;
+
 use serde_json::Value;
 
 use crate::{data_type::CoreDataType, chunk::Chunk};
 
+#[derive(Clone)]
 pub enum Codec {
-    ByteToArray(Box<dyn ByteToArrayCodec>),
-    ArrayToArray(Box<dyn ArrayToArrayCodec>),
-    ByteToByte(Box<dyn ByteToByteCodec>),
+    ByteToArray(Arc<dyn ByteToArrayCodec>),
+    ArrayToArray(Arc<dyn ArrayToArrayCodec>),
+    ByteToByte(Arc<dyn ByteToByteCodec>),
 }
 
 impl Codec {
@@ -26,7 +29,7 @@ pub trait NamedCodec {
     fn resolve_name(&self) -> String;
 }
 
-pub trait ByteToArrayCodec: NamedCodec {
+pub trait ByteToArrayCodec: NamedCodec  {
     fn encode(&self, data_type: &CoreDataType, config: Value, data: &Chunk) -> Result<Vec<u8>, String>;
     fn decode(&self, data_type: &CoreDataType, config: Value, data: &[u8]) -> Result<Chunk, String>;
 }
