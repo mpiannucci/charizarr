@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    array::Array, codec_registry::CodecRegistry, metadata::ZarrFormat, store::{ListableStore, ReadableStore, WriteableStore}
+    array::Array,
+    codec_registry::CodecRegistry,
+    metadata::ZarrFormat,
+    store::{ListableStore, ReadableStore, WriteableStore},
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -37,7 +40,20 @@ where
         Ok(Self { store, meta, path })
     }
 
-    pub async fn get_array(&self, name: &str, codecs: Option<CodecRegistry>) -> Result<Array<'a, T>, String> {
+    pub fn name(&self) -> &str {
+        self.meta
+            .attributes
+            .as_ref()
+            .and_then(|a| a.get("name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+    }
+
+    pub async fn get_array(
+        &self,
+        name: &str,
+        codecs: Option<CodecRegistry>,
+    ) -> Result<Array<'a, T>, String> {
         let path = format!("{path}{name}", path = self.path);
         Array::open(self.store, Some(path), codecs).await
     }

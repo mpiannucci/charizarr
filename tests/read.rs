@@ -25,17 +25,7 @@ async fn test_read() {
     let group = charizarr::group::Group::open(&store, None).await.unwrap();
 
     assert_eq!(&group.meta.zarr_format, &ZarrFormat::V3);
-
-    let name = &group
-        .meta
-        .attributes
-        .as_ref()
-        .unwrap()
-        .get("name")
-        .unwrap()
-        .as_str()
-        .unwrap();
-    assert_eq!(name, &"data.zarr");
+    assert_eq!(&group.name(), &"data.zarr");
 
     // Read in an array
     let array = charizarr::array::Array::open(&store, Some("3d.contiguous.i2".to_string()), None)
