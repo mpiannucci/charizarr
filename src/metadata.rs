@@ -9,7 +9,7 @@ pub type Configuration = Value;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Extension {
     pub name: String,
-    pub configuration: Option<Configuration>,
+    pub configuration: Configuration,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, PartialEq, Debug, Clone)]

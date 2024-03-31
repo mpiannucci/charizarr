@@ -1,10 +1,10 @@
-use blosc::{Clevel, Compressor, Context, ShuffleMode, decompress_bytes};
+use blosc::{decompress_bytes, Clevel, Compressor, Context, ShuffleMode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
     codec::{ByteToByteCodec, NamedCodec},
-    data_type::CoreDataType,
+    metadata::DataType,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -96,7 +96,8 @@ impl From<BloscCodecConfig> for Context {
     fn from(config: BloscCodecConfig) -> Self {
         Context::new()
             .blocksize(config.normalized_blocksize())
-            .compressor(config.cname.clone().into()).unwrap()
+            .compressor(config.cname.clone().into())
+            .unwrap()
             .clevel(config.normalized_clevel())
             .shuffle(config.shuffle.clone().into())
             .typesize(config.normalized_typesize())
@@ -112,8 +113,8 @@ impl BloscCodec {
         Self {}
     }
 
-    fn parse_config(&self, config: Value) -> Result<BloscCodecConfig, String> {
-        serde_json::from_value::<BloscCodecConfig>(config).map_err(|e| e.to_string())
+    fn parse_config(&self, config: &Value) -> Result<BloscCodecConfig, String> {
+        serde_json::from_value::<BloscCodecConfig>(config.clone()).map_err(|e| e.to_string())
     }
 }
 
@@ -126,8 +127,8 @@ impl NamedCodec for BloscCodec {
 impl ByteToByteCodec for BloscCodec {
     fn encode(
         &self,
-        _data_type: &CoreDataType,
-        config: Value,
+        _data_type: &DataType,
+        config: &Value,
         data: &[u8],
     ) -> Result<Vec<u8>, String> {
         let config = self.parse_config(config)?;
@@ -139,12 +140,10 @@ impl ByteToByteCodec for BloscCodec {
 
     fn decode(
         &self,
-        _data_type: &CoreDataType,
-        _config: Value,
+        _data_type: &DataType,
+        _config: &Value,
         data: &[u8],
     ) -> Result<Vec<u8>, String> {
-        unsafe {
-            decompress_bytes(data).map_err(|_| String::from("Failed to decompress data"))
-        }
+        unsafe { decompress_bytes(data).map_err(|_| String::from("Failed to decompress data")) }
     }
 }

@@ -5,6 +5,7 @@ use crate::{
     chunk::Chunk,
     codec::{ByteToArrayCodec, NamedCodec},
     data_type::CoreDataType,
+    metadata::DataType,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,8 +29,8 @@ impl BytesCodec {
         Self {}
     }
 
-    fn parse_config(&self, config: Value) -> Result<BytesCodecConfig, String> {
-        serde_json::from_value::<BytesCodecConfig>(config).map_err(|e| e.to_string())
+    fn parse_config(&self, config: &Value) -> Result<BytesCodecConfig, String> {
+        serde_json::from_value::<BytesCodecConfig>(config.clone()).map_err(|e| e.to_string())
     }
 }
 
@@ -78,8 +79,8 @@ macro_rules! encode_endian_chunk {
 impl ByteToArrayCodec for BytesCodec {
     fn encode(
         &self,
-        _data_type: &CoreDataType,
-        config: Value,
+        _data_type: &DataType,
+        config: &Value,
         data: &Chunk,
     ) -> Result<Vec<u8>, String> {
         let config = self.parse_config(config)?;
@@ -109,13 +110,11 @@ impl ByteToArrayCodec for BytesCodec {
         Ok(encoded)
     }
 
-    fn decode(
-        &self,
-        data_type: &CoreDataType,
-        config: Value,
-        data: &[u8],
-    ) -> Result<Chunk, String> {
+    fn decode(&self, data_type: &DataType, config: &Value, data: &[u8]) -> Result<Chunk, String> {
         let config = self.parse_config(config)?;
+        let DataType::Core(data_type) = data_type else {
+            return Err("Invalid data type".to_string());
+        };
 
         let decoded = match data_type {
             CoreDataType::Int8 => decode_endian_chunk!(config.endian, data, 1, i8),
@@ -158,15 +157,17 @@ mod tests {
             "endian": "little"
         });
 
+        let data_type = DataType::Core(CoreDataType::Int32);
         let i_array = Array::from_vec(vec![1, 2, 3, 4]).into_dyn();
         let data = Chunk::Int32(i_array.clone());
 
-        let encoded = codec.encode(&CoreDataType::Int32, config.clone(), &data).unwrap();
-        let decoded = codec.decode(&CoreDataType::Int32, config, &encoded).unwrap();
+        let encoded = codec.encode(&data_type, &config, &data).unwrap();
+        let decoded = codec.decode(&data_type, &config, &encoded).unwrap();
         let o_array = match decoded {
             Chunk::Int32(arr) => Some(arr),
             _ => None,
-        }.unwrap();
+        }
+        .unwrap();
 
         assert_eq!(i_array, o_array);
     }

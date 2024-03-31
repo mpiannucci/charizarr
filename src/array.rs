@@ -4,7 +4,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    chunk::Chunk, codec::Codec, codec_registry::CodecRegistry, codecs::{self, bytes::BytesCodec}, metadata::{DataType, Extension, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}
+    chunk::Chunk,
+    codec::Codec,
+    codec_registry::CodecRegistry,
+    codecs::{self, bytes::BytesCodec},
+    data_type::CoreDataType,
+    metadata::{DataType, Extension, ZarrFormat},
+    store::{ListableStore, ReadableStore, WriteableStore},
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -37,7 +43,11 @@ impl<'a, T> Array<'a, T>
 where
     T: ReadableStore + ListableStore + WriteableStore,
 {
-    pub async fn open(store: &'a T, path: Option<String>, codecs: Option<CodecRegistry>) -> Result<Self, String> {
+    pub async fn open(
+        store: &'a T,
+        path: Option<String>,
+        codecs: Option<CodecRegistry>,
+    ) -> Result<Self, String> {
         let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
         let metadata_path = format!("{path}zarr.json");
         let raw_metadata = store.get(&metadata_path).await?;
@@ -46,7 +56,12 @@ where
 
         let codecs = codecs.unwrap_or_else(|| CodecRegistry::default());
 
-        Ok(Self { store, codecs, meta, path })
+        Ok(Self {
+            store,
+            codecs,
+            meta,
+            path,
+        })
     }
 
     pub async fn get_raw_chunk(&self, key: &str) -> Result<Vec<u8>, String> {
@@ -55,26 +70,48 @@ where
     }
 
     pub async fn get_chunk(&self, key: &str) -> Result<Chunk, String> {
-        let mut bytes = self.get_raw_chunk(key).await?;
+        let bytes = self.get_raw_chunk(key).await?;
+        let data_type = self.dtype();
 
-        let codecs = self.meta.codecs.iter().map(|codec| {
-            self.codecs.get(&codec.name).unwrap()
-        }).collect::<Vec<&Codec>>();
+        let mut btb_codecs = vec![];
+        let mut bta_codecs = vec![];
+        let mut ata_codecs = vec![];
 
-        // byte to byte
-        let byte_to_byte = codecs.iter().fold(bytes, |bytes, codec| {
-            if let Codec::ByteToByte(codec) = codec {
-                bytes
-            } else {
-                bytes
+        self.meta.codecs.iter().rev().for_each(|codec| {
+            let config = codec.configuration.clone();
+            let Some(codec) = self.codecs.get(&codec.name) else {
+                println!("Codec not found: {}", codec.name);
+                return;
+            };
+            match codec {
+                Codec::ByteToByte(codec) => btb_codecs.push((codec, config)),
+                Codec::ByteToArray(codec) => bta_codecs.push((codec, config)),
+                Codec::ArrayToArray(codec) => ata_codecs.push((codec, config)),
             }
         });
 
+        // byte to byte
+        let bytes = btb_codecs.iter().fold(bytes, |bytes, codec| {
+            let (codec, config) = codec;
+            println!("Decoding with codec: {}", codec.resolve_name());
+            codec.decode(data_type, config, &bytes).unwrap()
+        });
+
         // byte to array
+        let (bta_codec, bta_config) = bta_codecs.first().unwrap();
+        let arr = bta_codec.decode(data_type, bta_config, &bytes).unwrap();
 
         // array to array
+        let arr = ata_codecs.iter().fold(arr, |arr, (codec, config)| {
+            codec.decode(data_type, config, &arr).unwrap()
+        });
 
-        todo!()
+        Ok(arr)
+    }
+
+    /// The data type of the array
+    pub fn dtype(&self) -> &DataType {
+        &self.meta.data_type
     }
 
     /// Get the shape of the entire array
@@ -84,12 +121,10 @@ where
 
     /// Get the shape of a single chunk
     /// TODO: Should this take into account grid type?
-    pub fn chunk(&self) -> Vec<usize> {
+    pub fn chunk_shape(&self) -> Vec<usize> {
         self.meta
             .chunk_grid
             .configuration
-            .as_ref()
-            .unwrap()
             .get("chunk_shape")
             .unwrap()
             .as_array()
@@ -106,7 +141,7 @@ mod tests {
 
     use crate::{
         data_type::CoreDataType,
-        metadata::{DataType, Extension, ZarrFormat},
+        metadata::{DataType, ZarrFormat},
     };
 
     use super::*;
@@ -160,15 +195,9 @@ mod tests {
         };
         assert_eq!(*data_type, CoreDataType::Float64);
 
-        let chunk_grid = match array_metadata.chunk_grid {
-            Extension {
-                name,
-                configuration: Some(config),
-            } => (name, config),
-            _ => panic!("Expected chunk grid extension"),
-        };
+        let chunk_grid = array_metadata.chunk_grid;
 
-        assert_eq!(chunk_grid.0, "regular");
-        assert_eq!(chunk_grid.1["chunk_shape"], json!([1000, 100]));
+        assert_eq!(&chunk_grid.name, "regular");
+        assert_eq!(chunk_grid.configuration["chunk_shape"], json!([1000, 100]));
     }
 }

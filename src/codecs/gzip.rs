@@ -1,13 +1,15 @@
 use std::io::{Read, Write};
 
-use serde::{Serialize, Deserialize};
-use serde_json::Value;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression as GzCompression;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-use crate::{codec::{ByteToByteCodec, NamedCodec}, data_type::CoreDataType};
-
+use crate::{
+    codec::{ByteToByteCodec, NamedCodec},
+    metadata::DataType,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GZipCodecConfig {
@@ -35,8 +37,8 @@ impl GZipCodec {
         Self {}
     }
 
-    fn parse_config(&self, config: Value) -> Result<GZipCodecConfig, String> {
-        serde_json::from_value::<GZipCodecConfig>(config).map_err(|e| e.to_string())
+    fn parse_config(&self, config: &Value) -> Result<GZipCodecConfig, String> {
+        serde_json::from_value::<GZipCodecConfig>(config.clone()).map_err(|e| e.to_string())
     }
 }
 
@@ -47,7 +49,12 @@ impl NamedCodec for GZipCodec {
 }
 
 impl ByteToByteCodec for GZipCodec {
-    fn encode(&self, _data_type: &CoreDataType, config: Value, data: &[u8]) -> Result<Vec<u8>, String> {
+    fn encode(
+        &self,
+        _data_type: &DataType,
+        config: &Value,
+        data: &[u8],
+    ) -> Result<Vec<u8>, String> {
         let level = self.parse_config(config)?.into();
         let mut encoder = GzEncoder::new(Vec::new(), level);
         encoder.write_all(data).map_err(|e| e.to_string())?;
@@ -55,9 +62,16 @@ impl ByteToByteCodec for GZipCodec {
         Ok(out)
     }
 
-    fn decode(&self, _data_type: &CoreDataType, _config: Value, data: &[u8]) -> Result<Vec<u8>, String> {
+    fn decode(
+        &self,
+        _data_type: &DataType,
+        _config: &Value,
+        data: &[u8],
+    ) -> Result<Vec<u8>, String> {
         let mut out = Vec::new();
-        let _ = GzDecoder::new(data).read_to_end(&mut out).map_err(|e| e.to_string())?;
+        let _ = GzDecoder::new(data)
+            .read_to_end(&mut out)
+            .map_err(|e| e.to_string())?;
         Ok(out)
     }
 }

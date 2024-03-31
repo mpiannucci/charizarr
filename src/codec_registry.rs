@@ -15,14 +15,15 @@ impl Default for CodecRegistry {
         codecs.insert(bytes_codec.name(), bytes_codec);
 
         Self {
-            codecs: HashMap::new(),
+            codecs,
         }
     }
 }
 
 impl CodecRegistry {
-    pub fn register(&mut self, codec: Codec) {
+    pub fn register(mut self, codec: Codec) -> Self {
         self.codecs.insert(codec.name(), codec);
+        self
     }
 
     pub fn get(&self, name: &str) -> Option<&Codec> {
