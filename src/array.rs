@@ -109,6 +109,11 @@ where
         Ok(arr)
     }
 
+    pub async fn set_raw_chunk(&self, key: &str, data: &[u8]) -> Result<(), String> {
+        let chunk_path = format!("{path}{key}", path = self.path);
+        self.store.set(&chunk_path, data).await
+    }
+
     /// The data type of the array
     pub fn dtype(&self) -> &DataType {
         &self.meta.data_type
