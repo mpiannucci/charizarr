@@ -96,7 +96,9 @@ where
     pub async fn get_chunk(&self, key: &str) -> Result<Chunk, String> {
         let bytes = self.get_raw_chunk(key).await?;
         let data_type = self.dtype();
-        decode_chunk(&self.codecs, &self.metadata.codecs, data_type, bytes)
+        let chunk = decode_chunk(&self.codecs, &self.metadata.codecs, data_type, bytes)?
+            .reshape(&self.chunk_shape());
+        Ok(chunk)
     }
 
     /// Set a raw chunk in the store, without encoding it

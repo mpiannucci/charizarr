@@ -48,6 +48,36 @@ impl Chunk {
     }
 }
 
+macro_rules! into_array {
+    ($d_name:path, $d_type:ty) => {
+        impl TryInto<ArrayD<$d_type>> for Chunk {
+            type Error = String;
+
+            fn try_into(self) -> Result<ArrayD<$d_type>, Self::Error> {
+                if let $d_name(arr) = self {
+                    Ok(arr)
+                } else {
+                    Err(format!("Chunk is not of type {}", stringify!($d_type)))
+                }
+            }
+        }
+    };
+}
+
+into_array!(Chunk::Bool, bool);
+into_array!(Chunk::Int8, i8);
+into_array!(Chunk::Int16, i16);
+into_array!(Chunk::Int32, i32);
+into_array!(Chunk::Int64, i64);
+into_array!(Chunk::UInt8, u8);
+into_array!(Chunk::UInt16, u16);
+into_array!(Chunk::UInt32, u32);
+into_array!(Chunk::UInt64, u64);
+into_array!(Chunk::Float32, f32);
+into_array!(Chunk::Float64, f64);
+into_array!(Chunk::Complex64, Complex<f32>);
+into_array!(Chunk::Complex128, Complex<f64>);
+
 macro_rules! into_chunk {
     ($d_name:expr, $d_type:ty) => {
         impl From<Vec<$d_type>> for Chunk {

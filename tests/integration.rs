@@ -80,11 +80,8 @@ async fn test_roundtrip() {
     let array2 = array2.unwrap();
     let chunk = array2.get_chunk("0/0").await;
     assert!(chunk.is_ok());
-    let chunk = chunk.unwrap().reshape(&[3, 2]);
-    let Chunk::UInt8(array_chunk) = chunk else {
-        assert!(false);
-        return;
-    };
+    let chunk = chunk.unwrap();
+    let array_chunk: ArrayD<u8> = chunk.try_into().unwrap();
     assert_eq!(array_chunk, set_array_data);
 
     // Cleanup
