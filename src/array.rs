@@ -6,14 +6,14 @@ use serde_json::Value;
 use crate::{
     chunk::{decode_chunk, encode_chunk, Chunk},
     codec_registry::CodecRegistry,
-    metadata::{DataType, Extension, ZarrFormat},
+    metadata::{DataType, Extension, NodeType, ZarrFormat},
     store::{ListableStore, ReadableStore, WriteableStore},
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ArrayMetadata {
     pub zarr_format: ZarrFormat,
-    pub node_type: String,
+    pub node_type: NodeType,
     pub shape: Vec<usize>,
     pub data_type: DataType,
     pub chunk_grid: Extension,
@@ -102,6 +102,7 @@ where
     /// Set a raw chunk in the store, without encoding it
     pub async fn set_raw_chunk(&self, key: &str, data: &[u8]) -> Result<(), String> {
         let chunk_path = format!("{path}{key}", path = self.path);
+        println!("Setting chunk at {chunk_path}");
         self.store.set(&chunk_path, data).await
     }
 
@@ -187,7 +188,7 @@ mod tests {
         let array_metadata = serde_json::from_str::<ArrayMetadata>(metadata);
         assert!(array_metadata.is_ok());
         let array_metadata = array_metadata.unwrap();
-        assert_eq!(&array_metadata.node_type, "array");
+        assert_eq!(&array_metadata.node_type, &NodeType::Array);
         assert_eq!(array_metadata.zarr_format, ZarrFormat::V3);
         assert_eq!(array_metadata.shape, vec![10000, 1000]);
 

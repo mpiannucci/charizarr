@@ -21,6 +21,13 @@ pub enum ZarrFormat {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum NodeType {
+    Group,
+    Array,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(untagged)]
 pub enum DataType {
     Core(CoreDataType),

@@ -13,7 +13,9 @@ pub struct FileSystemStore {
 impl FileSystemStore {
     /// Open an existing filesystem store
     pub async fn open(root: PathBuf) -> Result<Self, String> {
-        let exists = fs::try_exists(&root).await.map_err(|e| format!("Failed to check if root exists: {e}"))?;
+        let exists = fs::try_exists(&root)
+            .await
+            .map_err(|e| format!("Failed to check if root exists: {e}"))?;
         if !exists {
             return Err("Root directory does not exist".to_string());
         }
@@ -100,16 +102,31 @@ impl ListableStore for FileSystemStore {
 impl WriteableStore for FileSystemStore {
     async fn set(&self, key: &str, value: &[u8]) -> Result<(), String> {
         let path = self.root.join(key);
-        fs::write(path, value)
-            .await
-            .map_err(|e| format!("Failed to write file: {e}"))
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).await.map_err(|e| {
+                format!(
+                    "Failed to create parent directory {d}: {e}",
+                    d = parent.to_str().unwrap()
+                )
+            })?;
+        }
+        path.parent().map(|parent| fs::create_dir_all(parent));
+        fs::write(&path, value).await.map_err(|e| {
+            format!(
+                "Failed to write file {file}: {e}",
+                file = path.to_str().unwrap()
+            )
+        })
     }
 
     async fn erase(&self, key: &str) -> Result<(), String> {
         let path = self.root.join(key);
-        fs::remove_file(path)
-            .await
-            .map_err(|e| format!("Failed to remove file: {e}"))
+        fs::remove_file(&path).await.map_err(|e| {
+            format!(
+                "Failed to remove file {file}: {e}",
+                file = path.to_str().unwrap()
+            )
+        })
     }
 
     async fn erase_values(&self, keys: &[&str]) -> Result<(), String> {

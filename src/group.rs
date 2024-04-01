@@ -2,19 +2,18 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::fs;
 
 use crate::{
     array::{Array, ArrayMetadata},
     codec_registry::CodecRegistry,
-    metadata::ZarrFormat,
+    metadata::{NodeType, ZarrFormat},
     store::{ListableStore, ReadableStore, WriteableStore},
 };
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GroupMetadata {
     pub zarr_format: ZarrFormat,
-    pub node_type: String,
+    pub node_type: NodeType,
     pub attributes: Option<HashMap<String, Value>>,
 }
 
@@ -60,7 +59,7 @@ where
 
         let metadata = GroupMetadata {
             zarr_format: ZarrFormat::V3,
-            node_type: "group".to_string(),
+            node_type: NodeType::Group,
             attributes: Some(attributes),
         };
         let raw_metadata = serde_json::to_vec(&metadata)
@@ -139,7 +138,7 @@ mod tests {
         let group_metadata = serde_json::from_str::<GroupMetadata>(metadata);
         assert!(group_metadata.is_ok());
         let group_metadata = group_metadata.unwrap();
-        assert_eq!(&group_metadata.node_type, "group");
+        assert_eq!(&group_metadata.node_type, &NodeType::Group);
         assert_eq!(group_metadata.zarr_format, ZarrFormat::V3);
 
         let group_name = group_metadata
