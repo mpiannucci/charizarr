@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    chunk::Chunk,
+    chunk::{decode_chunk, encode_chunk, Chunk},
     codec::Codec,
     codec_registry::CodecRegistry,
     codecs::{self, bytes::BytesCodec},
@@ -73,45 +73,18 @@ where
         let bytes = self.get_raw_chunk(key).await?;
         let data_type = self.dtype();
 
-        let mut btb_codecs = vec![];
-        let mut bta_codecs = vec![];
-        let mut ata_codecs = vec![];
-
-        self.meta.codecs.iter().rev().for_each(|codec| {
-            let config = codec.configuration.clone();
-            let Some(codec) = self.codecs.get(&codec.name) else {
-                println!("Codec not found: {}", codec.name);
-                return;
-            };
-            match codec {
-                Codec::ByteToByte(codec) => btb_codecs.push((codec, config)),
-                Codec::ByteToArray(codec) => bta_codecs.push((codec, config)),
-                Codec::ArrayToArray(codec) => ata_codecs.push((codec, config)),
-            }
-        });
-
-        // byte to byte
-        let bytes = btb_codecs.iter().fold(bytes, |bytes, codec| {
-            let (codec, config) = codec;
-            println!("Decoding with codec: {}", codec.resolve_name());
-            codec.decode(data_type, config, &bytes).unwrap()
-        });
-
-        // byte to array
-        let (bta_codec, bta_config) = bta_codecs.first().unwrap();
-        let arr = bta_codec.decode(data_type, bta_config, &bytes).unwrap();
-
-        // array to array
-        let arr = ata_codecs.iter().fold(arr, |arr, (codec, config)| {
-            codec.decode(data_type, config, &arr).unwrap()
-        });
-
-        Ok(arr)
+        decode_chunk(&self.codecs, &self.meta.codecs, data_type, bytes)
     }
 
     pub async fn set_raw_chunk(&self, key: &str, data: &[u8]) -> Result<(), String> {
         let chunk_path = format!("{path}{key}", path = self.path);
         self.store.set(&chunk_path, data).await
+    }
+
+    pub async fn set_chunk(&self, key: &str, chunk: Chunk) -> Result<(), String> {
+        let data_type = self.dtype();
+        let data = encode_chunk(&self.codecs, &self.meta.codecs, data_type, chunk)?;
+        self.set_raw_chunk(key, &data).await
     }
 
     /// The data type of the array
