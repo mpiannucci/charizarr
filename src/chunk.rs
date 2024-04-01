@@ -26,6 +26,28 @@ pub enum Chunk {
     Raw16(ArrayD<u16>),
 }
 
+impl Chunk {
+    pub fn reshape(self, shape: &[usize]) -> Self {
+        match self {
+            Chunk::Bool(arr) => Chunk::Bool(arr.into_shape(shape).unwrap()),
+            Chunk::Int8(arr) => Chunk::Int8(arr.into_shape(shape).unwrap()),
+            Chunk::Int16(arr) => Chunk::Int16(arr.into_shape(shape).unwrap()),
+            Chunk::Int32(arr) => Chunk::Int32(arr.into_shape(shape).unwrap()),
+            Chunk::Int64(arr) => Chunk::Int64(arr.into_shape(shape).unwrap()),
+            Chunk::UInt8(arr) => Chunk::UInt8(arr.into_shape(shape).unwrap()),
+            Chunk::UInt16(arr) => Chunk::UInt16(arr.into_shape(shape).unwrap()),
+            Chunk::UInt32(arr) => Chunk::UInt32(arr.into_shape(shape).unwrap()),
+            Chunk::UInt64(arr) => Chunk::UInt64(arr.into_shape(shape).unwrap()),
+            Chunk::Float32(arr) => Chunk::Float32(arr.into_shape(shape).unwrap()),
+            Chunk::Float64(arr) => Chunk::Float64(arr.into_shape(shape).unwrap()),
+            Chunk::Complex64(arr) => Chunk::Complex64(arr.into_shape(shape).unwrap()),
+            Chunk::Complex128(arr) => Chunk::Complex128(arr.into_shape(shape).unwrap()),
+            Chunk::Raw8(arr) => Chunk::Raw8(arr.into_shape(shape).unwrap()),
+            Chunk::Raw16(arr) => Chunk::Raw16(arr.into_shape(shape).unwrap()),
+        }
+    }
+}
+
 macro_rules! into_chunk {
     ($d_name:expr, $d_type:ty) => {
         impl From<Vec<$d_type>> for Chunk {
