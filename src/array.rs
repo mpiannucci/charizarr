@@ -32,7 +32,7 @@ where
 {
     store: &'a T,
     codecs: CodecRegistry,
-    pub meta: ArrayMetadata,
+    pub metadata: ArrayMetadata,
     pub path: String,
 }
 
@@ -58,7 +58,29 @@ where
         Ok(Self {
             store,
             codecs,
-            meta,
+            metadata: meta,
+            path,
+        })
+    }
+
+    pub async fn create(
+        store: &'a T,
+        path: Option<String>,
+        metadata: ArrayMetadata,
+        codecs: Option<CodecRegistry>,
+    ) -> Result<Self, String> {
+        let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
+        let metadata_path = format!("{path}zarr.json");
+        let raw_metadata = serde_json::to_vec(&metadata)
+            .map_err(|e| format!("Failed to serialize metadata: {e}"))?;
+        store.set(&metadata_path, &raw_metadata).await?;
+
+        let codecs = codecs.unwrap_or_else(|| CodecRegistry::default());
+
+        Ok(Self {
+            store,
+            codecs,
+            metadata,
             path,
         })
     }
@@ -74,7 +96,7 @@ where
     pub async fn get_chunk(&self, key: &str) -> Result<Chunk, String> {
         let bytes = self.get_raw_chunk(key).await?;
         let data_type = self.dtype();
-        decode_chunk(&self.codecs, &self.meta.codecs, data_type, bytes)
+        decode_chunk(&self.codecs, &self.metadata.codecs, data_type, bytes)
     }
 
     /// Set a raw chunk in the store, without encoding it
@@ -86,23 +108,23 @@ where
     /// Set a chunk in the store, encoding it according to the array's metadata
     pub async fn set_chunk(&self, key: &str, chunk: Chunk) -> Result<(), String> {
         let data_type = self.dtype();
-        let data = encode_chunk(&self.codecs, &self.meta.codecs, data_type, chunk)?;
+        let data = encode_chunk(&self.codecs, &self.metadata.codecs, data_type, chunk)?;
         self.set_raw_chunk(key, &data).await
     }
 
     /// The data type of the array
     pub fn dtype(&self) -> &DataType {
-        &self.meta.data_type
+        &self.metadata.data_type
     }
 
     /// Get the shape of the entire array
     pub fn shape(&self) -> Vec<usize> {
-        self.meta.shape.to_vec()
+        self.metadata.shape.to_vec()
     }
 
     /// Get the shape of a single chunk
     pub fn chunk_shape(&self) -> Vec<usize> {
-        self.meta
+        self.metadata
             .chunk_grid
             .configuration
             .get("chunk_shape")

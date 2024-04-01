@@ -5,6 +5,12 @@ pub type KeyRangeValues = (String, Range<usize>, Vec<u8>);
 
 /// Read only store interface
 pub trait ReadableStore {
+    /// Retrieve the name of the store, usually this is the stores root key,
+    /// not including the full path or prefix used to access the store.
+    ///
+    /// For example, a filesystem store with root key “/path/to/data.zarr” would have the name “data.zarr”.
+    fn name(&self) -> String;
+
     /// Retrieve the value associated with a given key
     async fn get(&self, key: &str) -> Result<Vec<u8>, String>;
 
@@ -15,8 +21,8 @@ pub trait ReadableStore {
     ///
     /// Returns a list of values, in the order of the key_ranges,
     /// may contain null/none for missing keys
-    /// 
-    /// By default this is not implemented, and it is optional for stores to 
+    ///
+    /// By default this is not implemented, and it is optional for stores to
     /// implement.
     async fn get_partial_values(&self, _keys: &[KeyRange]) -> Result<Vec<u8>, String> {
         Err("Not implemented".to_string())
@@ -51,7 +57,7 @@ pub trait WriteableStore {
     /// Store values at a given key, starting at byte range_start.
     ///
     /// must not specify overlapping ranges for the same key
-    /// 
+    ///
     /// By default this is not implemented, and it is optional for stores to
     /// implement.
     async fn set_partial_values(&self, _key_start_values: &[KeyRangeValues]) -> Result<(), String> {

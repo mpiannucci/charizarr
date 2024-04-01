@@ -9,6 +9,29 @@ use charizarr::{
 use ndarray::Array;
 
 #[tokio::test]
+async fn test_roundtrip() {
+    // Create the codec registry
+    let codecs = Some(
+        charizarr::codec_registry::CodecRegistry::default()
+            .register(Codec::ByteToByte(Arc::new(GZipCodec::new())))
+            .register(Codec::ByteToByte(Arc::new(BloscCodec::new()))),
+    );
+
+    // Create the store
+    let path = std::path::PathBuf::from("tests/roundtrip.zarr");
+    let store = charizarr::stores::FileSystemStore::create(path).await.unwrap();
+    let group = charizarr::group::Group::create(&store, None, None).await.unwrap();
+    assert_eq!(group.name(), "roundtrip.zarr");
+
+    // TODO Create an array
+
+
+    // TODO Open the store
+
+    // TODO Read the array
+}
+
+#[tokio::test]
 async fn test_read() {
     // Create the codec registry
     let codecs = Some(
@@ -19,12 +42,12 @@ async fn test_read() {
 
     // Open the store
     let path = std::path::PathBuf::from("tests/data.zarr");
-    let store = charizarr::stores::FileSystemStore::new(path);
+    let store = charizarr::stores::FileSystemStore::open(path).await.unwrap();
 
     // Read in a group
     let group = charizarr::group::Group::open(&store, None).await.unwrap();
 
-    assert_eq!(&group.meta.zarr_format, &ZarrFormat::V3);
+    assert_eq!(&group.metadata.zarr_format, &ZarrFormat::V3);
     assert_eq!(&group.name(), &"data.zarr");
 
     // Read in an array
@@ -32,8 +55,8 @@ async fn test_read() {
         .await
         .unwrap();
 
-    assert_eq!(&array.meta.zarr_format, &ZarrFormat::V3);
-    let data_type = array.meta.data_type.clone();
+    assert_eq!(&array.metadata.zarr_format, &ZarrFormat::V3);
+    let data_type = array.metadata.data_type.clone();
     assert_eq!(
         data_type,
         DataType::Core(charizarr::data_type::CoreDataType::Int16)
@@ -44,8 +67,8 @@ async fn test_read() {
         .get_array("1d.contiguous.raw.i2", codecs.clone())
         .await
         .unwrap();
-    assert_eq!(&array.meta.zarr_format, &ZarrFormat::V3);
-    assert_eq!(&array.meta.codecs[0].name, &"bytes");
+    assert_eq!(&array.metadata.zarr_format, &ZarrFormat::V3);
+    assert_eq!(&array.metadata.codecs[0].name, &"bytes");
 
     // Lets read a chunk manually for now
     let chunk = array.get_chunk("c/0").await.unwrap();
@@ -63,7 +86,7 @@ async fn test_read() {
         .get_array("1d.contiguous.gzip.i2", codecs.clone())
         .await
         .unwrap();
-    assert_eq!(&array.meta.codecs.len(), &2);
+    assert_eq!(&array.metadata.codecs.len(), &2);
     assert_eq!(array.shape(), vec![4]);
     assert_eq!(array.chunk_shape(), vec![4]);
 
@@ -79,7 +102,7 @@ async fn test_read() {
         .get_array("1d.contiguous.blosc.i2", codecs)
         .await
         .unwrap();
-    assert_eq!(&array.meta.codecs.len(), &2);
+    assert_eq!(&array.metadata.codecs.len(), &2);
 
     let chunk = array.get_chunk("c/0").await.unwrap();
     let Chunk::Int16(array_chunk) = chunk else {

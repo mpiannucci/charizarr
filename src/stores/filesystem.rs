@@ -11,12 +11,29 @@ pub struct FileSystemStore {
 }
 
 impl FileSystemStore {
-    pub fn new(root: PathBuf) -> Self {
-        Self { root }
+    /// Open an existing filesystem store
+    pub async fn open(root: PathBuf) -> Result<Self, String> {
+        let exists = fs::try_exists(&root).await.map_err(|e| format!("Failed to check if root exists: {e}"))?;
+        if !exists {
+            return Err("Root directory does not exist".to_string());
+        }
+        Ok(Self { root })
+    }
+
+    /// Create a new filesystem store, this will create the root directory if it does not exist
+    pub async fn create(root: PathBuf) -> Result<Self, String> {
+        fs::create_dir_all(&root)
+            .await
+            .map_err(|e| format!("Failed to create directory: {e}"))?;
+        Ok(Self { root })
     }
 }
 
 impl ReadableStore for FileSystemStore {
+    fn name(&self) -> String {
+        self.root.file_name().unwrap().to_str().unwrap().to_string()
+    }
+
     async fn get(&self, key: &str) -> Result<Vec<u8>, String> {
         let path = self.root.join(key);
         fs::read(path)
