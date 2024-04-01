@@ -130,12 +130,7 @@ async fn test_read() {
     assert_eq!(&array.metadata.codecs[0].name, &"bytes");
 
     // Lets read a chunk manually for now
-    let chunk = array.get_chunk("c/0").await.unwrap();
-    let Chunk::Int16(array_chunk) = chunk else {
-        assert!(false);
-        return;
-    };
-
+    let array_chunk: ArrayD<i16> = array.get_chunk("c/0").await.unwrap().try_into().unwrap();
     let expected = Array::from_vec(vec![1i16, 2, 3, 4]).into_dyn();
     assert_eq!(array_chunk, expected);
 
@@ -149,11 +144,7 @@ async fn test_read() {
     assert_eq!(array.shape(), vec![4]);
     assert_eq!(array.chunk_shape(), vec![4]);
 
-    let chunk = array.get_chunk("c/0").await.unwrap();
-    let Chunk::Int16(array_chunk) = chunk else {
-        assert!(false);
-        return;
-    };
+    let array_chunk: ArrayD<i16> = array.get_chunk("c/0").await.unwrap().try_into().unwrap();
     assert_eq!(array_chunk, expected);
 
     // Then we'll try blosc
@@ -163,10 +154,6 @@ async fn test_read() {
         .unwrap();
     assert_eq!(&array.metadata.codecs.len(), &2);
 
-    let chunk = array.get_chunk("c/0").await.unwrap();
-    let Chunk::Int16(array_chunk) = chunk else {
-        assert!(false);
-        return;
-    };
+    let array_chunk: ArrayD<i16> = array.get_chunk("c/0").await.unwrap().try_into().unwrap();
     assert_eq!(array_chunk, expected);
 }
