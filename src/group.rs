@@ -81,7 +81,31 @@ where
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-
     use super::*;
+
+    #[test]
+    fn parse_group_metadata() {
+        let metadata = r#"
+            {
+              "attributes": {
+                "name": "data.zarr"
+              },
+              "zarr_format": 3,
+              "node_type": "group"
+            }
+            "#;
+
+        let group_metadata = serde_json::from_str::<GroupMetadata>(metadata);
+        assert!(group_metadata.is_ok());
+        let group_metadata = group_metadata.unwrap();
+        assert_eq!(&group_metadata.node_type, "group");
+        assert_eq!(group_metadata.zarr_format, ZarrFormat::V3);
+
+        let group_name = group_metadata.attributes
+            .as_ref()
+            .and_then(|a| a.get("name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert_eq!(group_name, "data.zarr");
+    }
 }

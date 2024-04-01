@@ -5,10 +5,7 @@ use serde_json::Value;
 
 use crate::{
     chunk::{decode_chunk, encode_chunk, Chunk},
-    codec::Codec,
     codec_registry::CodecRegistry,
-    codecs::{self, bytes::BytesCodec},
-    data_type::CoreDataType,
     metadata::{DataType, Extension, ZarrFormat},
     store::{ListableStore, ReadableStore, WriteableStore},
 };
@@ -43,6 +40,8 @@ impl<'a, T> Array<'a, T>
 where
     T: ReadableStore + ListableStore + WriteableStore,
 {
+    /// Open an existing array from a store. If the zarr.json metadata file is not found,
+    /// an error is returned.
     pub async fn open(
         store: &'a T,
         path: Option<String>,
@@ -64,23 +63,27 @@ where
         })
     }
 
+    /// Get a raw chunk from the store, without decoding it
     pub async fn get_raw_chunk(&self, key: &str) -> Result<Vec<u8>, String> {
         let chunk_path = format!("{path}{key}", path = self.path);
         self.store.get(&chunk_path).await
     }
 
+    /// Get a chunk from the store, decoding it according to the array's metadata
+    /// and the codecs provided to the array's registry
     pub async fn get_chunk(&self, key: &str) -> Result<Chunk, String> {
         let bytes = self.get_raw_chunk(key).await?;
         let data_type = self.dtype();
-
         decode_chunk(&self.codecs, &self.meta.codecs, data_type, bytes)
     }
 
+    /// Set a raw chunk in the store, without encoding it
     pub async fn set_raw_chunk(&self, key: &str, data: &[u8]) -> Result<(), String> {
         let chunk_path = format!("{path}{key}", path = self.path);
         self.store.set(&chunk_path, data).await
     }
 
+    /// Set a chunk in the store, encoding it according to the array's metadata
     pub async fn set_chunk(&self, key: &str, chunk: Chunk) -> Result<(), String> {
         let data_type = self.dtype();
         let data = encode_chunk(&self.codecs, &self.meta.codecs, data_type, chunk)?;
@@ -98,7 +101,6 @@ where
     }
 
     /// Get the shape of a single chunk
-    /// TODO: Should this take into account grid type?
     pub fn chunk_shape(&self) -> Vec<usize> {
         self.meta
             .chunk_grid
