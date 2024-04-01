@@ -63,18 +63,18 @@ async fn test_roundtrip() {
     let write_chunk = array.set_chunk("0/0", chunk).await;
     assert!(write_chunk.is_ok());
 
-    // TODO Open the store
+    // Open the store
     let store2 = charizarr::stores::FileSystemStore::open(path).await;
 
     assert!(store2.is_ok());
     let store2 = store2.unwrap();
 
-    // TODO Open the group
+    // Open the group
     let group2 = charizarr::group::Group::open(&store2, None).await;
     assert!(group2.is_ok());
     let group2 = group2.unwrap();
 
-    // TODO Read the array
+    // Read the array
     let array2 = group2.get_array("rect", codecs).await;
     assert!(array2.is_ok());
     let array2 = array2.unwrap();
