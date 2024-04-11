@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    ops::{Index, Range},
+    ops::Range,
 };
 
 use serde::{Deserialize, Serialize};
@@ -141,23 +141,26 @@ where
             .map(|v| v.as_u64().unwrap() as usize)
             .collect::<Vec<usize>>()
     }
-}
 
-impl<'a, T> Index<Vec<Range<usize>>> for Array<'a, T>
-where
-    T: ReadableStore + ListableStore + WriteableStore,
-{
-    type Output = Chunk;
+    /// Slice the array according to the given index ranges, asynchronously
+    /// reading slices from the store and decoding them, then concatenating
+    /// into the correct indices
+    ///
+    /// This should use Index but async assosciated types are not yet stable
+    pub async fn sel(&self, index: Vec<Range<usize>>) -> Result<Chunk, String> {
+        let array_shape = self.shape();
+        let out_shape = index.iter().map(|r| r.end - r.start).collect::<Vec<usize>>();
+        let out_array = Chunk::zeros(self.dtype(), &out_shape)?;
 
-    fn index(&self, index: Vec<Range<usize>>) -> &Self::Output {
-        // TODO Create the output chunk initialized to zero and reshape it to the indexed shape
         let chunk_shape = self.chunk_shape();
 
-        // TODO: Get the selected chunks from the range of indices passed in as the index
+        // TODO: Get the chunk indices that are needed, along with the slice indices to write back into
 
-        // TODO: Iterate over the chunks and insert them into the output chunk
+        // TODO: Fetch all of the chunks
 
-        todo!()
+        // TODO: Insert the chunks into the correct place in the output array
+
+        Ok(out_array)
     }
 }
 

@@ -28,8 +28,12 @@ pub enum Chunk {
 }
 
 impl Chunk {
-    pub fn zeros(dtype: CoreDataType, shape: &[usize]) -> Self {
-        match dtype {
+    pub fn zeros(dtype: &DataType, shape: &[usize]) -> Result<Self, String> {
+        let DataType::Core(dtype) = dtype else {
+            return Err("Only core data types are supported".to_string());
+        };
+
+        let chunk = match dtype {
             CoreDataType::Bool => Chunk::Bool(ArrayD::<u8>::zeros(IxDyn(shape)).mapv(|_| false)),
             CoreDataType::Int8 => Chunk::Int8(ArrayD::zeros(IxDyn(shape))),
             CoreDataType::Int16 => Chunk::Int16(ArrayD::zeros(IxDyn(shape))),
@@ -45,7 +49,9 @@ impl Chunk {
             CoreDataType::Complex128 => Chunk::Complex128(ArrayD::zeros(IxDyn(shape))),
             CoreDataType::Raw8 => Chunk::Raw8(ArrayD::zeros(IxDyn(shape))),
             CoreDataType::Raw16 => Chunk::Raw16(ArrayD::zeros(IxDyn(shape))),
-        }
+        };
+
+        Ok(chunk)
     }
 
     pub fn reshape(self, shape: &[usize]) -> Self {
