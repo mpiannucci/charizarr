@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Index, Range},
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -137,6 +140,24 @@ where
             .iter()
             .map(|v| v.as_u64().unwrap() as usize)
             .collect::<Vec<usize>>()
+    }
+}
+
+impl<'a, T> Index<Vec<Range<usize>>> for Array<'a, T>
+where
+    T: ReadableStore + ListableStore + WriteableStore,
+{
+    type Output = Chunk;
+
+    fn index(&self, index: Vec<Range<usize>>) -> &Self::Output {
+        // TODO Create the output chunk initialized to zero and reshape it to the indexed shape
+        let chunk_shape = self.chunk_shape();
+
+        // TODO: Get the selected chunks from the range of indices passed in as the index
+
+        // TODO: Iterate over the chunks and insert them into the output chunk
+
+        todo!()
     }
 }
 

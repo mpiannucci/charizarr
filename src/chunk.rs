@@ -4,6 +4,7 @@ use num::Complex;
 use crate::{
     codec::Codec,
     codec_registry::CodecRegistry,
+    data_type::CoreDataType,
     metadata::{DataType, Extension},
 };
 
@@ -27,6 +28,26 @@ pub enum Chunk {
 }
 
 impl Chunk {
+    pub fn zeros(dtype: CoreDataType, shape: &[usize]) -> Self {
+        match dtype {
+            CoreDataType::Bool => Chunk::Bool(ArrayD::<u8>::zeros(IxDyn(shape)).mapv(|_| false)),
+            CoreDataType::Int8 => Chunk::Int8(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Int16 => Chunk::Int16(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Int32 => Chunk::Int32(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Int64 => Chunk::Int64(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::UInt8 => Chunk::UInt8(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::UInt16 => Chunk::UInt16(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::UInt32 => Chunk::UInt32(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::UInt64 => Chunk::UInt64(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Float32 => Chunk::Float32(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Float64 => Chunk::Float64(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Complex64 => Chunk::Complex64(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Complex128 => Chunk::Complex128(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Raw8 => Chunk::Raw8(ArrayD::zeros(IxDyn(shape))),
+            CoreDataType::Raw16 => Chunk::Raw16(ArrayD::zeros(IxDyn(shape))),
+        }
+    }
+
     pub fn reshape(self, shape: &[usize]) -> Self {
         match self {
             Chunk::Bool(arr) => Chunk::Bool(arr.into_shape(shape).unwrap()),
