@@ -1,12 +1,13 @@
 /// This is a port of https://github.com/scalableminds/zarrita/blob/async/zarrita/indexing.py
-
 use std::ops::Range;
+
+use itertools::{izip, Itertools, MultiProduct};
 
 #[derive(Debug, Clone)]
 pub struct ChunkIndexProjection {
-    chunk_index: usize,
-    chunk_sel: Range<usize>,
-    out_sel: Range<usize>,
+    pub chunk_index: usize,
+    pub chunk_sel: Range<usize>,
+    pub out_sel: Range<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +75,62 @@ impl Iterator for SliceDimIndexIterator {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct ChunkProjection {
+    pub chunk_coords: Vec<usize>,
+    pub chunk_sel: Vec<Range<usize>>,
+    pub out_sel: Vec<Range<usize>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BasicIndexIterator {
+    indexes: MultiProduct<SliceDimIndexIterator>,
+    pub shape: Vec<usize>,
+}
+
+impl BasicIndexIterator {
+    pub fn new(shape: Vec<usize>, chunk_shape: Vec<usize>, sel: Vec<Range<usize>>) -> Self {
+        let indexes = izip!(shape, chunk_shape, sel)
+            .map(|(dim_len, chunk_len, sel)| SliceDimIndexIterator::new(dim_len, chunk_len, sel))
+            .collect::<Vec<_>>();
+        let sel_shape = indexes.iter().map(|indexer| indexer.nitems).collect();
+
+        let indexes = indexes.into_iter().multi_cartesian_product();
+
+        Self {
+            indexes,
+            shape: sel_shape,
+        }
+    }
+}
+
+impl Iterator for BasicIndexIterator {
+    type Item = ChunkProjection;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let chunk_indexes = self.indexes.next()?;
+
+        let chunk_coords = chunk_indexes
+            .iter()
+            .map(|index| index.chunk_index)
+            .collect();
+        let chunk_sel = chunk_indexes
+            .iter()
+            .map(|index| index.chunk_sel.clone())
+            .collect();
+        let out_sel = chunk_indexes
+            .iter()
+            .map(|index| index.out_sel.clone())
+            .collect();
+
+        Some(ChunkProjection {
+            chunk_coords,
+            chunk_sel,
+            out_sel,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,5 +160,27 @@ mod tests {
         assert_eq!(second_chunk.chunk_index, 1);
         assert_eq!(second_chunk.chunk_sel, 0..2);
         assert_eq!(second_chunk.out_sel, 1..3);
+    }
+
+    #[test]
+    fn test_basic_index_iterator() {
+        // Assuming shape of (6,2), chunk shape of (3, 2) and selection of [2..5, 1..2]
+        //  0 1  2  | 3  4  5
+        //  6 7 [8  | 9 10] 11
+        let chunks = BasicIndexIterator::new(vec![6, 2], vec![3, 2], vec![2..5, 1..2]);
+        assert_eq!(chunks.shape, vec![3, 1]);
+
+        let chunks: Vec<_> = chunks.collect();
+        assert_eq!(chunks.len(), 2);
+
+        let first_chunk = &chunks[0];
+        assert_eq!(first_chunk.chunk_coords, vec![0, 0]);
+        assert_eq!(first_chunk.chunk_sel, vec![2..3, 1..2]);
+        assert_eq!(first_chunk.out_sel, vec![0..1, 0..1]);
+
+        let second_chunk = &chunks[1];
+        assert_eq!(second_chunk.chunk_coords, vec![1, 0]);
+        assert_eq!(second_chunk.chunk_sel, vec![0..2, 1..2]);
+        assert_eq!(second_chunk.out_sel, vec![1..3, 0..1]);
     }
 }
