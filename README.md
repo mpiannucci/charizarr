@@ -1,9 +1,8 @@
 # charizarr
 
-A small, opinionated, async zarr 3.0 implementation written in rust
+A small, opinionated, async zarr 3.0 implementation written in rust.
 
-This is beginning as a way to deep dive into zarr and to push whats possible
-with rust and async.
+This should not be used for anything real yet (probably), it is going to change a lot and is primarily a thought excecise.
 
 ## Development
 
@@ -13,6 +12,7 @@ This crate requires rust 1.75 or later because it uses async traits.
 
 - [x] Create filesystem zarr store
 - [ ] Create cloud zarr store
+- [ ] Virtual zarr store (kerchunk)
 - [x] Read zarr group hierarchy
 - [x] Write zarr group hierarchy
 - [x] Read zarr array hierarchy
@@ -21,6 +21,11 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [x] Write zarr array chunks
 - [x] Read zarr array data
 - [ ] Write zarr array data
+- [x] bytes codec
+- [x] blosc codec
+- [x] gzip codec
+- [ ] transpose codec
+- [ ] grib codec
 
 ## Features
 
