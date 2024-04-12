@@ -16,7 +16,6 @@ pub struct SliceDimIndexIterator {
     chunk_len: usize,
     nitems: usize,
     current_chunk_index: usize,
-    end_chunk_index: usize,
 }
 
 impl SliceDimIndexIterator {
@@ -30,7 +29,6 @@ impl SliceDimIndexIterator {
             chunk_len,
             nitems,
             current_chunk_index,
-            end_chunk_index,
         }
     }
 }
@@ -39,23 +37,18 @@ impl Iterator for SliceDimIndexIterator {
     type Item = ChunkIndexProjection;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_chunk_index >= self.end_chunk_index {
+        let dim_offset = self.current_chunk_index * self.chunk_len;
+        if dim_offset >= self.sel.end {
             return None;
         }
 
-        let dim_offset = self.current_chunk_index * self.chunk_len;
         let dim_limit = ((self.current_chunk_index + 1) * self.chunk_len).min(self.dim_len);
 
         // determine chunk length, accounting for trailing chunk
         let dim_chunk_len = dim_limit - dim_offset;
         let (dim_chunk_sel_start, dim_out_offset) = if self.sel.start < dim_offset {
-            let mut dim_chunk_sel_start = 0;
-            let remainder = dim_offset - self.sel.start;
-            if remainder > 0 {
-                dim_chunk_sel_start += remainder;
-            }
             let dim_out_offset = dim_offset - self.sel.start;
-            (dim_chunk_sel_start, dim_out_offset)
+            (0usize, dim_out_offset)
         } else {
             let dim_chunk_sel_start = self.sel.start - dim_offset;
             (dim_chunk_sel_start, 0usize)
@@ -67,15 +60,17 @@ impl Iterator for SliceDimIndexIterator {
             self.sel.end - dim_offset
         };
 
-        let dim_chunk_sel = dim_chunk_sel_start..dim_chunk_sel_stop;
-        let dim_out_sel = dim_out_offset..dim_limit;
+        let chunk_sel = dim_chunk_sel_start..dim_chunk_sel_stop;
+        let chunk_nitems = dim_chunk_sel_stop - dim_chunk_sel_start;
+        let out_sel = dim_out_offset..dim_out_offset + chunk_nitems;
 
+        let chunk_index = self.current_chunk_index;
         self.current_chunk_index += 1;
 
         Some(ChunkIndexProjection {
-            chunk_index: self.current_chunk_index,
-            chunk_sel: dim_chunk_sel,
-            out_sel: dim_out_sel,
+            chunk_index,
+            chunk_sel,
+            out_sel,
         })
     }
 }
@@ -86,12 +81,28 @@ mod tests {
 
     #[test]
     fn test_slice_dim_indexer() {
+        // Assuming dimensions of 10, chunk length of 2 and selection of 1..4
+        // 0 [1 | 2 3] | 4 5 | 6 7 | 8 9
         let indexer = SliceDimIndexIterator::new(10, 2, 1..4);
         assert_eq!(indexer.dim_len, 10);
         assert_eq!(indexer.chunk_len, 2);
         assert_eq!(indexer.nitems, 3);
         assert_eq!(indexer.sel, 1..4);
         assert_eq!(indexer.current_chunk_index, 0);
-        assert_eq!(indexer.end_chunk_index, 3);
+
+        let chunks: Vec<_> = indexer.collect();
+        assert_eq!(chunks.len(), 2);
+
+        // 0 [1] |
+        let first_chunk = &chunks[0];
+        assert_eq!(first_chunk.chunk_index, 0);
+        assert_eq!(first_chunk.chunk_sel, 1..2);
+        assert_eq!(first_chunk.out_sel, 0..1);
+
+        // 0 1 | [2 3] |
+        let second_chunk = &chunks[1];
+        assert_eq!(second_chunk.chunk_index, 1);
+        assert_eq!(second_chunk.chunk_sel, 0..2);
+        assert_eq!(second_chunk.out_sel, 1..3);
     }
 }
