@@ -153,6 +153,17 @@ where
         let out_array = Chunk::zeros(self.dtype(), &out_shape)?;
 
         let chunk_shape = self.chunk_shape();
+        let chunk_start = index
+            .iter()
+            .enumerate()
+            .map(|(i,r)| r.start / chunk_shape[i])
+            .collect::<Vec<usize>>();
+
+        let chunk_end = index
+            .iter()
+            .enumerate()
+            .map(|(i,r)| ((r.end as f64) / chunk_shape[i] as f64).ceil() as usize)
+            .collect::<Vec<usize>>();
 
         // TODO: Get the chunk indices that are needed, along with the slice indices to write back into
 

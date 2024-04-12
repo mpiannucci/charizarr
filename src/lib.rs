@@ -8,3 +8,5 @@ pub mod group;
 pub mod metadata;
 pub mod store;
 pub mod stores;
+
+mod index;
