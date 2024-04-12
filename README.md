@@ -9,6 +9,19 @@ with rust and async.
 
 This crate requires rust 1.75 or later because it uses async traits.
 
+### Progress
+
+- [x] Create filesystem zarr store
+- [ ] Create cloud zarr store
+- [x] Read zarr group hierarchy
+- [x] Write zarr group hierarchy
+- [x] Read zarr array hierarchy
+- [x] Write zarr array hierarchy
+- [x] Read zarr array chunks
+- [x] Write zarr array chunks
+- [x] Read zarr array data
+- [ ] Write zarr array data
+
 ## Features
 
 **gzip**
