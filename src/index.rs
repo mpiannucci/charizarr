@@ -22,7 +22,6 @@ impl SliceDimIndexIterator {
     pub fn new(dim_len: usize, chunk_len: usize, sel: Range<usize>) -> Self {
         let nitems = (sel.end - sel.start).max(0);
         let current_chunk_index = sel.start / chunk_len;
-        let end_chunk_index = (((sel.end + chunk_len) as f64) / chunk_len as f64).ceil() as usize;
         Self {
             sel,
             dim_len,
