@@ -1,14 +1,13 @@
-use std::{
-    collections::HashMap,
-    ops::Range,
-};
+use std::{collections::HashMap, ops::Range};
 
+use futures::{future::try_join_all, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
     chunk::{decode_chunk, encode_chunk, Chunk},
     codec_registry::CodecRegistry,
+    index::{BasicIndexIterator, ChunkProjection},
     metadata::{DataType, Extension, NodeType, ZarrFormat},
     store::{ListableStore, ReadableStore, WriteableStore},
 };
@@ -147,29 +146,49 @@ where
     /// into the correct indices
     ///
     /// This should use Index but async assosciated types are not yet stable
-    pub async fn sel(&self, index: Vec<Range<usize>>) -> Result<Chunk, String> {
+    ///
+    /// Also maybe should use ndarray slice or sliceinfo as primitive
+    pub async fn get(&self, index: Option<Vec<Range<usize>>>) -> Result<Chunk, String> {
         let array_shape = self.shape();
-        let out_shape = index.iter().map(|r| r.end - r.start).collect::<Vec<usize>>();
-        let out_array = Chunk::zeros(self.dtype(), &out_shape)?;
 
-        let chunk_shape = self.chunk_shape();
-        let chunk_start = index
+        let index = index.unwrap_or_else(|| {
+            array_shape
+                .iter()
+                .map(|&s| 0..s)
+                .collect::<Vec<Range<usize>>>()
+        });
+
+        let out_shape = index
             .iter()
-            .enumerate()
-            .map(|(i,r)| r.start / chunk_shape[i])
+            .map(|r| r.end - r.start)
             .collect::<Vec<usize>>();
+        let mut out_array = Chunk::zeros(self.dtype(), &out_shape)?;
 
-        let chunk_end = index
-            .iter()
-            .enumerate()
-            .map(|(i,r)| ((r.end as f64) / chunk_shape[i] as f64).ceil() as usize)
-            .collect::<Vec<usize>>();
+        // Gather all of the chunks, create futures for fetching chunk data
+        let chunks =
+            BasicIndexIterator::new(array_shape, self.chunk_shape(), index).map(|chunk_info| {
+                let chunk_key = chunk_info
+                    .chunk_coords
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<String>>()
+                    .join("/");
 
-        // TODO: Get the chunk indices that are needed, along with the slice indices to write back into
+                async move {
+                    self.get_chunk(&chunk_key)
+                        .await
+                        .map(|chunk| (chunk_info, chunk))
+                }
+            });
 
-        // TODO: Fetch all of the chunks
+        // Trigger the fetch on all of the chunks
+        let chunks = try_join_all(chunks).await?;
 
-        // TODO: Insert the chunks into the correct place in the output array
+        // Insert the chunks into the correct place in the output array
+        chunks.into_iter().for_each(|(chunk_info, chunk)| {
+            // TODO: Handle error
+            let _ = out_array.set(chunk_info, chunk);
+        });
 
         Ok(out_array)
     }

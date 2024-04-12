@@ -2,12 +2,13 @@
 use std::ops::Range;
 
 use itertools::{izip, Itertools, MultiProduct};
+use ndarray::Slice;
 
 #[derive(Debug, Clone)]
 pub struct ChunkIndexProjection {
     pub chunk_index: usize,
-    pub chunk_sel: Range<usize>,
-    pub out_sel: Range<usize>,
+    pub chunk_sel: Slice,
+    pub out_sel: Slice,
 }
 
 #[derive(Debug, Clone)]
@@ -60,9 +61,9 @@ impl Iterator for SliceDimIndexIterator {
             self.sel.end - dim_offset
         };
 
-        let chunk_sel = dim_chunk_sel_start..dim_chunk_sel_stop;
+        let chunk_sel = Slice::new(dim_chunk_sel_start as isize, Some(dim_chunk_sel_stop as isize), 1);
         let chunk_nitems = dim_chunk_sel_stop - dim_chunk_sel_start;
-        let out_sel = dim_out_offset..dim_out_offset + chunk_nitems;
+        let out_sel = Slice::new(dim_out_offset as isize, Some(dim_out_offset as isize + chunk_nitems as isize), 1);
 
         let chunk_index = self.current_chunk_index;
         self.current_chunk_index += 1;
@@ -78,8 +79,8 @@ impl Iterator for SliceDimIndexIterator {
 #[derive(Clone, Debug)]
 pub struct ChunkProjection {
     pub chunk_coords: Vec<usize>,
-    pub chunk_sel: Vec<Range<usize>>,
-    pub out_sel: Vec<Range<usize>>,
+    pub chunk_sel: Vec<Slice>,
+    pub out_sel: Vec<Slice>,
 }
 
 #[derive(Debug, Clone)]
@@ -133,6 +134,8 @@ impl Iterator for BasicIndexIterator {
 
 #[cfg(test)]
 mod tests {
+    use ndarray::s;
+
     use super::*;
 
     #[test]
@@ -152,14 +155,14 @@ mod tests {
         // 0 [1] |
         let first_chunk = &chunks[0];
         assert_eq!(first_chunk.chunk_index, 0);
-        assert_eq!(first_chunk.chunk_sel, 1..2);
-        assert_eq!(first_chunk.out_sel, 0..1);
+        assert_eq!(first_chunk.chunk_sel, Slice::new(1, Some(2), 1));
+        assert_eq!(first_chunk.out_sel, Slice::new(0, Some(1), 1));
 
         // 0 1 | [2 3] |
         let second_chunk = &chunks[1];
         assert_eq!(second_chunk.chunk_index, 1);
-        assert_eq!(second_chunk.chunk_sel, 0..2);
-        assert_eq!(second_chunk.out_sel, 1..3);
+        assert_eq!(second_chunk.chunk_sel, Slice::new(0, Some(2), 1));
+        assert_eq!(second_chunk.out_sel, Slice::new(1, Some(3), 1));
     }
 
     #[test]
@@ -175,12 +178,16 @@ mod tests {
 
         let first_chunk = &chunks[0];
         assert_eq!(first_chunk.chunk_coords, vec![0, 0]);
-        assert_eq!(first_chunk.chunk_sel, vec![2..3, 1..2]);
-        assert_eq!(first_chunk.out_sel, vec![0..1, 0..1]);
+        assert_eq!(first_chunk.chunk_sel[0], Slice::new(2, Some(3), 1));
+        assert_eq!(first_chunk.chunk_sel[1], Slice::new(1, Some(2), 1));
+        assert_eq!(first_chunk.out_sel[0], Slice::new(0, Some(1), 1));
+        assert_eq!(first_chunk.out_sel[1], Slice::new(0, Some(1), 1));
 
         let second_chunk = &chunks[1];
         assert_eq!(second_chunk.chunk_coords, vec![1, 0]);
-        assert_eq!(second_chunk.chunk_sel, vec![0..2, 1..2]);
-        assert_eq!(second_chunk.out_sel, vec![1..3, 0..1]);
+        assert_eq!(second_chunk.chunk_sel[0], Slice::new(0, Some(2), 1));
+        assert_eq!(second_chunk.chunk_sel[1], Slice::new(1, Some(2), 1));
+        assert_eq!(second_chunk.out_sel[0], Slice::new(1, Some(3), 1));
+        assert_eq!(second_chunk.out_sel[1], Slice::new(0, Some(1), 1));
     }
 }

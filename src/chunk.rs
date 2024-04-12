@@ -5,6 +5,7 @@ use crate::{
     codec::Codec,
     codec_registry::CodecRegistry,
     data_type::CoreDataType,
+    index::ChunkProjection,
     metadata::{DataType, Extension},
 };
 
@@ -72,6 +73,105 @@ impl Chunk {
             Chunk::Raw8(arr) => Chunk::Raw8(arr.into_shape(shape).unwrap()),
             Chunk::Raw16(arr) => Chunk::Raw16(arr.into_shape(shape).unwrap()),
         }
+    }
+
+    /// Set the value of a chunk at a given selection.
+    /// TODO: MAKE THIS WAY CLEANER
+    pub fn set(&mut self, sel: ChunkProjection, value: Self) -> Result<(), String> {
+        match self {
+            Chunk::Bool(arr) => {
+                let mut target_chunk: ArrayD<bool> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Int8(arr) => {
+                let mut target_chunk: ArrayD<i8> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Int16(arr) => {
+                let mut target_chunk: ArrayD<i16> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Int32(arr) => {
+                let mut target_chunk: ArrayD<i32> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Int64(arr) => {
+                let mut target_chunk: ArrayD<i64> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::UInt8(arr) => {
+                let mut target_chunk: ArrayD<u8> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::UInt16(arr) => {
+                let mut target_chunk: ArrayD<u16> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::UInt32(arr) => {
+                let mut target_chunk: ArrayD<u32> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::UInt64(arr) => {
+                let mut target_chunk: ArrayD<u64> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Float32(arr) => {
+                let mut target_chunk: ArrayD<f32> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Float64(arr) => {
+                let mut target_chunk: ArrayD<f64> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Complex64(arr) => {
+                let mut target_chunk: ArrayD<Complex<f32>> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Complex128(arr) => {
+                let mut target_chunk: ArrayD<Complex<f64>> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Raw8(arr) => {
+                let mut target_chunk: ArrayD<u8> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+            Chunk::Raw16(arr) => {
+                let mut target_chunk: ArrayD<u16> = value.try_into()?;
+                let target = target_chunk.slice_each_axis_mut(|a| sel.chunk_sel[a.axis.0]);
+                let mut arr_view = arr.slice_each_axis_mut(|a| sel.out_sel[a.axis.0]);
+                arr_view.assign(&target);
+            }
+        }
+
+        Ok(())
     }
 }
 
