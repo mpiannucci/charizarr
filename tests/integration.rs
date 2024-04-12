@@ -78,11 +78,9 @@ async fn test_roundtrip() {
     let array2 = group2.get_array("rect", codecs).await;
     assert!(array2.is_ok());
     let array2 = array2.unwrap();
-    let chunk = array2.get_chunk("0/0").await;
-    assert!(chunk.is_ok());
-    let chunk = chunk.unwrap();
-    let array_chunk: ArrayD<u8> = chunk.try_into().unwrap();
-    assert_eq!(array_chunk, set_array_data);
+
+    let array_data: ArrayD<u8> = array2.get(None).await.unwrap().try_into().unwrap();
+    assert_eq!(array_data, set_array_data);
 
     // Cleanup
     std::fs::remove_dir_all("tests/roundtrip.zarr").unwrap();
@@ -130,7 +128,7 @@ async fn test_read() {
     assert_eq!(&array.metadata.codecs[0].name, &"bytes");
 
     // Lets read a chunk manually for now
-    let array_chunk: ArrayD<i16> = array.get_chunk("c/0").await.unwrap().try_into().unwrap();
+    let array_chunk: ArrayD<i16> = array.get_chunk("0").await.unwrap().try_into().unwrap();
     let expected = Array::from_vec(vec![1i16, 2, 3, 4]).into_dyn();
     assert_eq!(array_chunk, expected);
 
@@ -144,16 +142,31 @@ async fn test_read() {
     assert_eq!(array.shape(), vec![4]);
     assert_eq!(array.chunk_shape(), vec![4]);
 
-    let array_chunk: ArrayD<i16> = array.get_chunk("c/0").await.unwrap().try_into().unwrap();
+    let array_chunk: ArrayD<i16> = array.get_chunk("0").await.unwrap().try_into().unwrap();
     assert_eq!(array_chunk, expected);
 
     // Then we'll try blosc
     let array = group
-        .get_array("1d.contiguous.blosc.i2", codecs)
+        .get_array("1d.contiguous.blosc.i2", codecs.clone())
         .await
         .unwrap();
     assert_eq!(&array.metadata.codecs.len(), &2);
 
-    let array_chunk: ArrayD<i16> = array.get_chunk("c/0").await.unwrap().try_into().unwrap();
+    let array_chunk: ArrayD<i16> = array.get_chunk("0").await.unwrap().try_into().unwrap();
     assert_eq!(array_chunk, expected);
+
+    // 3d
+    let array = group
+        .get_array("3d.contiguous.i2", codecs.clone())
+        .await
+        .unwrap();
+    assert_eq!(&array.metadata.zarr_format, &ZarrFormat::V3);
+    assert_eq!(&array.metadata.codecs[0].name, &"bytes");
+    assert_eq!(&array.metadata.codecs[1].name, &"blosc");
+
+    // Test getting a specific slice of the array
+    let array_slice = array.get(Some(vec![0usize..1, 0usize..1, 0usize..1])).await.unwrap();
+    let array_data: ArrayD<i16> = array_slice.try_into().unwrap();
+    let expected = Array::from_vec(vec![0i16]).into_dyn().into_shape(IxDyn(&[1, 1, 1])).unwrap();
+    assert_eq!(array_data, expected);
 }

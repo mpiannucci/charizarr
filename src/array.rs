@@ -89,7 +89,7 @@ where
 
     /// Get a raw chunk from the store, without decoding it
     pub async fn get_raw_chunk(&self, key: &str) -> Result<Vec<u8>, String> {
-        let chunk_path = format!("{path}{key}", path = self.path);
+        let chunk_path = format!("{path}c/{key}", path = self.path);
         self.store.get(&chunk_path).await
     }
 
@@ -105,8 +105,7 @@ where
 
     /// Set a raw chunk in the store, without encoding it
     pub async fn set_raw_chunk(&self, key: &str, data: &[u8]) -> Result<(), String> {
-        let chunk_path = format!("{path}{key}", path = self.path);
-        println!("Setting chunk at {chunk_path}");
+        let chunk_path = format!("{path}c/{key}", path = self.path);
         self.store.set(&chunk_path, data).await
     }
 
@@ -173,6 +172,7 @@ where
                     .map(|i| i.to_string())
                     .collect::<Vec<String>>()
                     .join("/");
+
 
                 async move {
                     self.get_chunk(&chunk_key)

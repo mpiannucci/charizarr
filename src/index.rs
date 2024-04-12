@@ -134,8 +134,6 @@ impl Iterator for BasicIndexIterator {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::s;
-
     use super::*;
 
     #[test]
