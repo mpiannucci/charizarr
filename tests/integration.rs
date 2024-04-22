@@ -98,6 +98,17 @@ async fn test_roundtrip() {
     let truth = ArrayD::from_shape_vec(IxDyn(&[3, 1]), vec![26u8, 28, 7]).unwrap();
     assert_eq!(second_col, truth);
 
+    // Lets write again to the entire array
+    let new_set_raw_data = vec![10u8, 11, 12, 13, 14, 15];
+    let new_set_array_data = ArrayD::from_shape_vec(IxDyn(&[3, 2]), new_set_raw_data).unwrap();
+    let new_array_values = Chunk::UInt8(new_set_array_data.clone());
+    let result = array2.set(None, new_array_values).await;
+    assert!(result.is_ok());
+
+    // Read the array
+    let updated_array_data: ArrayD<u8> = array2.get(None).await.unwrap().try_into().unwrap();
+    assert_eq!(updated_array_data, new_set_array_data);
+
     // Cleanup
     std::fs::remove_dir_all("tests/roundtrip.zarr").unwrap();
 }
