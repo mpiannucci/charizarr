@@ -113,7 +113,7 @@ where
     pub async fn set_chunk(&self, key: &str, chunk: Chunk) -> Result<(), String> {
         let data_type = self.dtype();
         let data = encode_chunk(&self.codecs, &self.metadata.codecs, data_type, chunk)?;
-        self.set_raw_chunk(key, &data).await
+        self.set_raw_chunk(&key, &data).await
     }
 
     /// The data type of the array
@@ -173,7 +173,6 @@ where
                     .collect::<Vec<String>>()
                     .join("/");
 
-
                 async move {
                     self.get_chunk(&chunk_key)
                         .await
@@ -187,7 +186,7 @@ where
         // Insert the chunks into the correct place in the output array
         chunks.into_iter().for_each(|(chunk_info, chunk)| {
             // TODO: Handle error
-            let _ = out_array.set(chunk_info, chunk);
+            let _ = out_array.set(&chunk_info, chunk);
         });
 
         Ok(out_array)
@@ -201,7 +200,56 @@ where
     ///
     /// Also maybe should use ndarray slice or sliceinfo as primitive
     pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: Chunk) -> Result<(), String> {
-        unimplemented!("set not yet implemented, for now explicitly set chunks")
+        let array_shape = self.shape();
+        let chunk_shape = self.chunk_shape();
+
+        let index = index.unwrap_or_else(|| {
+            array_shape
+                .iter()
+                .map(|&s| 0..s)
+                .collect::<Vec<Range<usize>>>()
+        });
+
+        let chunks =
+            BasicIndexIterator::new(array_shape, chunk_shape, index).map(|chunk_info| {
+                let chunk_key = chunk_info
+                    .chunk_coords
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<String>>()
+                    .join("/");
+
+                async move {
+                    self.get_chunk(&chunk_key)
+                        .await
+                        .map(|chunk| (chunk_info, chunk))
+                }
+            });
+
+        // Trigger the fetch on all of the chunks, then overwrite the values
+        // in the chunks with the new values
+        let new_chunks = try_join_all(chunks)
+            .await?
+            .into_iter()
+            .map(|(chunk_info, mut chunk)| {
+                // TODO: THIS IS BAD
+                let value = value.clone();
+
+                async move {
+                    let chunk_key = chunk_info
+                        .chunk_coords
+                        .iter()
+                        .map(|i| i.to_string())
+                        .collect::<Vec<String>>()
+                        .join("/");
+
+                    chunk.set(&chunk_info, value)?;
+                    self.set_chunk(&chunk_key, chunk).await
+                }
+            });
+
+        // Trigger futures, wait for all to complete
+        try_join_all(new_chunks).await.map(|_| ())
     }
 }
 

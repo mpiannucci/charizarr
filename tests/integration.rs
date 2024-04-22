@@ -82,6 +82,22 @@ async fn test_roundtrip() {
     let array_data: ArrayD<u8> = array2.get(None).await.unwrap().try_into().unwrap();
     assert_eq!(array_data, set_array_data);
 
+    // Set some custom part of the array
+    let new_values = ArrayD::from_shape_vec(IxDyn(&[2, 2]), vec![25, 26, 27, 28]).unwrap();
+    let new_value = Chunk::UInt8(new_values);
+    let sel = vec![0usize..2, 0..2];
+    let set_opt = array2.set(Some(sel), new_value).await;
+    assert!(set_opt.is_ok());
+
+    // Read the array
+    let first_col: ArrayD<u8> = array2.get(Some(vec![0usize..3, 0..1])).await.unwrap().try_into().unwrap();
+    let truth = ArrayD::from_shape_vec(IxDyn(&[3, 1]), vec![25u8, 27, 6]).unwrap();
+    assert_eq!(first_col, truth);
+
+    let second_col: ArrayD<u8> = array2.get(Some(vec![0usize..3, 1..2])).await.unwrap().try_into().unwrap();
+    let truth = ArrayD::from_shape_vec(IxDyn(&[3, 1]), vec![26u8, 28, 7]).unwrap();
+    assert_eq!(second_col, truth);
+
     // Cleanup
     std::fs::remove_dir_all("tests/roundtrip.zarr").unwrap();
 }

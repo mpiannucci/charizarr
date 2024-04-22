@@ -20,13 +20,14 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [x] Read zarr array chunks
 - [x] Write zarr array chunks
 - [x] Read zarr array data
-- [ ] Write zarr array data
+- [x] Write zarr array data
 - [x] bytes codec
 - [x] blosc codec
 - [x] gzip codec
 - [ ] transpose codec
 - [ ] grib codec
 - [ ] error handling
+- [ ] optimization (dont clone all over the place)
 
 ## Features
 

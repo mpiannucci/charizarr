@@ -77,7 +77,7 @@ impl Chunk {
 
     /// Set the value of a chunk at a given selection.
     /// TODO: MAKE THIS WAY CLEANER
-    pub fn set(&mut self, sel: ChunkProjection, value: Self) -> Result<(), String> {
+    pub fn set(&mut self, sel: &ChunkProjection, value: Self) -> Result<(), String> {
         match self {
             Chunk::Bool(arr) => {
                 let mut target_chunk: ArrayD<bool> = value.try_into()?;
