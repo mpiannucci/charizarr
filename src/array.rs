@@ -192,6 +192,17 @@ where
 
         Ok(out_array)
     }
+
+    /// Slice the array according to the given index ranges, asynchronously
+    /// reading slices from the store and decoding them, then concatenating
+    /// into the correct indices
+    ///
+    /// This should use Index but async assosciated types are not yet stable
+    ///
+    /// Also maybe should use ndarray slice or sliceinfo as primitive
+    pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: Chunk) -> Result<(), String> {
+        unimplemented!("set not yet implemented, for now explicitly set chunks")
+    }
 }
 
 #[cfg(test)]

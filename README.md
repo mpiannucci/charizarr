@@ -26,6 +26,7 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [x] gzip codec
 - [ ] transpose codec
 - [ ] grib codec
+- [ ] error handling
 
 ## Features
 
