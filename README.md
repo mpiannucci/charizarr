@@ -43,8 +43,13 @@ This feature enables gzip compression support. This is enabled by default.
 
 This feature enables blosc compression support. This is enabled by default. It requires that the blosc library is installed on your system and is not available for wasm targets.
 
-For macos:
+*macos*:
 ```bash
 brew install c-blosc
 export RUSTFLAGS="-L/opt/homebrew/lib"
+```
+
+*ubuntu*:
+```bash
+apt-get install libblosc-dev
 ```
