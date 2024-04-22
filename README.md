@@ -27,7 +27,11 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [ ] transpose codec
 - [ ] grib codec
 - [ ] error handling
-- [ ] optimization (dont clone all over the place)
+- [ ] tests for store implementations
+- [ ] optimization
+    - Dont clone data arrays
+    - Ergonomic API for using arrays
+    - Get rid of generics on hierarchies if possible
 
 ## Features
 
