@@ -29,7 +29,7 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [ ] error handling
 - [ ] tests for store implementations
 - [ ] optimization
-    - font clone data arrays
+    - dont clone data arrays
     - ergonomic API for using arrays
     - get rid of generics on hierarchies if possible
 
