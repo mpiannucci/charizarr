@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: c-blosc
+          packages: libblosc-dev gzip
           version: 1.0
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: c-blosc
+          packages: libblosc-dev gzip
           version: 1.0
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
