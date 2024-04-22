@@ -10,17 +10,17 @@ This crate requires rust 1.75 or later because it uses async traits.
 
 ### Progress
 
-- [x] Create filesystem zarr store
-- [ ] Create cloud zarr store
-- [ ] Virtual zarr store (kerchunk)
-- [x] Read zarr group hierarchy
-- [x] Write zarr group hierarchy
-- [x] Read zarr array hierarchy
-- [x] Write zarr array hierarchy
-- [x] Read zarr array chunks
-- [x] Write zarr array chunks
-- [x] Read zarr array data
-- [x] Write zarr array data
+- [x] create filesystem zarr store
+- [ ] create cloud zarr store
+- [ ] virtual zarr store (kerchunk)
+- [x] read zarr group hierarchy
+- [x] write zarr group hierarchy
+- [x] read zarr array hierarchy
+- [x] write zarr array hierarchy
+- [x] read zarr array chunks
+- [x] write zarr array chunks
+- [x] read zarr array data
+- [x] write zarr array data
 - [x] bytes codec
 - [x] blosc codec
 - [x] gzip codec
@@ -29,9 +29,9 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [ ] error handling
 - [ ] tests for store implementations
 - [ ] optimization
-    - Dont clone data arrays
-    - Ergonomic API for using arrays
-    - Get rid of generics on hierarchies if possible
+    - font clone data arrays
+    - ergonomic API for using arrays
+    - get rid of generics on hierarchies if possible
 
 ## Features
 
