@@ -2,12 +2,17 @@ use std::{collections::HashMap, sync::Arc};
 
 use charizarr::{
     array::ArrayMetadata,
-    zarray::ZArray,
     codec::Codec,
     codecs::{blosc::BloscCodec, gzip::GZipCodec},
     metadata::{DataType, Extension, NodeType, ZarrFormat},
+    zarray::ZArray,
 };
 use ndarray::{Array, ArrayD, IxDyn};
+use object_store::{
+    local::LocalFileSystem,
+    path::Path,
+};
+use serde_json::Value;
 
 #[tokio::test]
 async fn test_roundtrip() {
@@ -19,14 +24,21 @@ async fn test_roundtrip() {
     );
 
     // Create the store
-    let path = std::path::PathBuf::from("tests/roundtrip.zarr");
-    let store = charizarr::stores::FileSystemStore::create(path.clone())
+    let local_store = Box::new(LocalFileSystem::new());
+    let path = Path::from_absolute_path(std::env::current_dir().unwrap())
+        .expect("Failed to create store in current directory")
+        .child("tests")
+        .child("roundtrip.zarr");
+    let store = charizarr::stores::ZarrObjectStore::create(local_store, path.clone());
+
+    let group_attrs = Some(HashMap::from([(
+        "name".to_string(),
+        Value::String("roundtrip".to_string()),
+    )]));
+    let group = charizarr::group::Group::create(&store, None, group_attrs)
         .await
         .unwrap();
-    let group = charizarr::group::Group::create(&store, None, None)
-        .await
-        .unwrap();
-    assert_eq!(group.name(), "roundtrip.zarr");
+    assert_eq!(group.name(), "roundtrip");
 
     // Create an array
     let metadata = ArrayMetadata {
@@ -64,10 +76,8 @@ async fn test_roundtrip() {
     assert!(write_chunk.is_ok());
 
     // Open the store
-    let store2 = charizarr::stores::FileSystemStore::open(path).await;
-
-    assert!(store2.is_ok());
-    let store2 = store2.unwrap();
+    let local_store2 = Box::new(LocalFileSystem::new());
+    let store2 = charizarr::stores::ZarrObjectStore::create(local_store2, path);
 
     // Open the group
     let group2 = charizarr::group::Group::open(&store2, None).await;
@@ -90,11 +100,21 @@ async fn test_roundtrip() {
     assert!(set_opt.is_ok());
 
     // Read the array
-    let first_col: ArrayD<u8> = array2.get(Some(vec![0usize..3, 0..1])).await.unwrap().try_into().unwrap();
+    let first_col: ArrayD<u8> = array2
+        .get(Some(vec![0usize..3, 0..1]))
+        .await
+        .unwrap()
+        .try_into()
+        .unwrap();
     let truth = ArrayD::from_shape_vec(IxDyn(&[3, 1]), vec![25u8, 27, 6]).unwrap();
     assert_eq!(first_col, truth);
 
-    let second_col: ArrayD<u8> = array2.get(Some(vec![0usize..3, 1..2])).await.unwrap().try_into().unwrap();
+    let second_col: ArrayD<u8> = array2
+        .get(Some(vec![0usize..3, 1..2]))
+        .await
+        .unwrap()
+        .try_into()
+        .unwrap();
     let truth = ArrayD::from_shape_vec(IxDyn(&[3, 1]), vec![26u8, 28, 7]).unwrap();
     assert_eq!(second_col, truth);
 
@@ -123,10 +143,12 @@ async fn test_read() {
     );
 
     // Open the store
-    let path = std::path::PathBuf::from("tests/data.zarr");
-    let store = charizarr::stores::FileSystemStore::open(path)
-        .await
-        .unwrap();
+    let local_store = Box::new(LocalFileSystem::new());
+    let path = Path::from_absolute_path(std::env::current_dir().unwrap())
+        .expect("Failed to create store in current directory")
+        .child("tests")
+        .child("data.zarr");
+    let store = charizarr::stores::ZarrObjectStore::create(local_store, path);
 
     // Read in a group
     let group = charizarr::group::Group::open(&store, None).await.unwrap();
@@ -192,8 +214,14 @@ async fn test_read() {
     assert_eq!(&array.metadata.codecs[1].name, &"blosc");
 
     // Test getting a specific slice of the array
-    let array_slice = array.get(Some(vec![0usize..1, 0usize..1, 0usize..1])).await.unwrap();
+    let array_slice = array
+        .get(Some(vec![0usize..1, 0usize..1, 0usize..1]))
+        .await
+        .unwrap();
     let array_data: ArrayD<i16> = array_slice.try_into().unwrap();
-    let expected = Array::from_vec(vec![0i16]).into_dyn().into_shape(IxDyn(&[1, 1, 1])).unwrap();
+    let expected = Array::from_vec(vec![0i16])
+        .into_dyn()
+        .into_shape(IxDyn(&[1, 1, 1]))
+        .unwrap();
     assert_eq!(array_data, expected);
 }

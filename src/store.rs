@@ -7,12 +7,6 @@ pub type KeyRangeValues = (String, Range<usize>, Vec<u8>);
 
 /// Read only store interface
 pub trait ReadableStore {
-    /// Retrieve the name of the store, usually this is the stores root key,
-    /// not including the full path or prefix used to access the store.
-    ///
-    /// For example, a filesystem store with root key “/path/to/data.zarr” would have the name “data.zarr”.
-    fn name(&self) -> String;
-
     /// Retrieve the value associated with a given key
     async fn get(&self, key: &str) -> Result<Vec<u8>, CharizarrError>;
 

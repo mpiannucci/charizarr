@@ -52,7 +52,7 @@ where
         let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
 
         let attributes = attributes
-            .unwrap_or_else(|| HashMap::from([("name".into(), Value::String(store.name()))]));
+            .unwrap_or_else(|| HashMap::from([("name".into(), Value::String("group".to_string()))]));
 
         let metadata = GroupMetadata {
             zarr_format: ZarrFormat::V3,
