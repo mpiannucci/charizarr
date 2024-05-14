@@ -83,7 +83,7 @@ impl ListableStore for ZarrObjectStore {
         Ok(meta)
     }
 
-    async fn list_dir(&self, prefix: Option<&str>) -> Result<Vec<String>, CharizarrError> {
+    async fn list_dir(&self, _prefix: Option<&str>) -> Result<Vec<String>, CharizarrError> {
         Err(CharizarrError::UnimplementedError("list_dir"))
     }
 }
