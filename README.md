@@ -12,7 +12,7 @@ This crate requires rust 1.75 or later because it uses async traits.
 
 - [x] create filesystem zarr store
 - [ ] create cloud zarr store
-- [ ] virtual zarr store (kerchunk)
+- [ ] virtual zarr store (kerchunk, reference manifest)
 - [x] read zarr group hierarchy
 - [x] write zarr group hierarchy
 - [x] read zarr array hierarchy
