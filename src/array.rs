@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    chunk::{decode_chunk, encode_chunk, Chunk}, codec_registry::CodecRegistry, error::CharizarrError, index::BasicIndexIterator, metadata::{DataType, Extension, NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}
+    chunk::{decode_chunk, encode_chunk}, codec_registry::CodecRegistry, error::CharizarrError, index::BasicIndexIterator, metadata::{DataType, Extension, NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}, zarray::ZArray
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -91,7 +91,7 @@ where
 
     /// Get a chunk from the store, decoding it according to the array's metadata
     /// and the codecs provided to the array's registry
-    pub async fn get_chunk(&self, key: &str) -> Result<Chunk, CharizarrError> {
+    pub async fn get_chunk(&self, key: &str) -> Result<ZArray, CharizarrError> {
         let bytes = self.get_raw_chunk(key).await?;
         let data_type = self.dtype();
         let chunk = decode_chunk(&self.codecs, &self.metadata.codecs, data_type, bytes)?
@@ -106,7 +106,7 @@ where
     }
 
     /// Set a chunk in the store, encoding it according to the array's metadata
-    pub async fn set_chunk(&self, key: &str, chunk: &Chunk) -> Result<(), CharizarrError> {
+    pub async fn set_chunk(&self, key: &str, chunk: &ZArray) -> Result<(), CharizarrError> {
         let data_type = self.dtype();
         let data = encode_chunk(&self.codecs, &self.metadata.codecs, data_type, chunk)?;
         self.set_raw_chunk(&key, &data).await
@@ -143,7 +143,7 @@ where
     /// This should use Index but async assosciated types are not yet stable
     ///
     /// Also maybe should use ndarray slice or sliceinfo as primitive
-    pub async fn get(&self, index: Option<Vec<Range<usize>>>) -> Result<Chunk, CharizarrError> {
+    pub async fn get(&self, index: Option<Vec<Range<usize>>>) -> Result<ZArray, CharizarrError> {
         let array_shape = self.shape();
 
         let index = index.unwrap_or_else(|| {
@@ -157,7 +157,7 @@ where
             .iter()
             .map(|r| r.end - r.start)
             .collect::<Vec<usize>>();
-        let mut out_array = Chunk::zeros(self.dtype(), &out_shape)?;
+        let mut out_array = ZArray::zeros(self.dtype(), &out_shape)?;
 
         // Gather all of the chunks, create futures for fetching chunk data
         let chunks =
@@ -195,7 +195,7 @@ where
     /// This should use Index but async assosciated types are not yet stable
     ///
     /// Also maybe should use ndarray slice or sliceinfo as primitive
-    pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: &Chunk) -> Result<(), CharizarrError> {
+    pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: &ZArray) -> Result<(), CharizarrError> {
         let array_shape = self.shape();
         let chunk_shape = self.chunk_shape();
 

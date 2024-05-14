@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    chunk::Chunk,
+    zarray::ZArray,
     codec::{ByteToArrayCodec, NamedCodec},
     data_type::CoreDataType,
     error::CharizarrError,
@@ -83,35 +83,35 @@ impl ByteToArrayCodec for BytesCodec {
         &self,
         _data_type: &DataType,
         config: &Value,
-        data: &Chunk,
+        data: &ZArray,
     ) -> Result<Vec<u8>, CharizarrError> {
         let config = self.parse_config(config)?;
 
         match data {
-            Chunk::Bool(arr) => Ok(arr
+            ZArray::Bool(arr) => Ok(arr
                 .iter()
                 .flat_map(|x| (*x as u8).to_be_bytes())
                 .collect::<Vec<u8>>()),
-            Chunk::Int8(arr) => Ok(encode_endian_chunk!(config.endian, arr, i8)),
-            Chunk::Int16(arr) => Ok(encode_endian_chunk!(config.endian, arr, i16)),
-            Chunk::Int32(arr) => Ok(encode_endian_chunk!(config.endian, arr, i32)),
-            Chunk::Int64(arr) => Ok(encode_endian_chunk!(config.endian, arr, i64)),
-            Chunk::UInt8(arr) => Ok(encode_endian_chunk!(config.endian, arr, u8)),
-            Chunk::UInt16(arr) => Ok(encode_endian_chunk!(config.endian, arr, u16)),
-            Chunk::UInt32(arr) => Ok(encode_endian_chunk!(config.endian, arr, u32)),
-            Chunk::UInt64(arr) => Ok(encode_endian_chunk!(config.endian, arr, u64)),
-            Chunk::Float32(arr) => Ok(encode_endian_chunk!(config.endian, arr, f32)),
-            Chunk::Float64(arr) => Ok(encode_endian_chunk!(config.endian, arr, f64)),
-            Chunk::Complex64(_) => Err(CharizarrError::UnimplementedError(
+            ZArray::Int8(arr) => Ok(encode_endian_chunk!(config.endian, arr, i8)),
+            ZArray::Int16(arr) => Ok(encode_endian_chunk!(config.endian, arr, i16)),
+            ZArray::Int32(arr) => Ok(encode_endian_chunk!(config.endian, arr, i32)),
+            ZArray::Int64(arr) => Ok(encode_endian_chunk!(config.endian, arr, i64)),
+            ZArray::UInt8(arr) => Ok(encode_endian_chunk!(config.endian, arr, u8)),
+            ZArray::UInt16(arr) => Ok(encode_endian_chunk!(config.endian, arr, u16)),
+            ZArray::UInt32(arr) => Ok(encode_endian_chunk!(config.endian, arr, u32)),
+            ZArray::UInt64(arr) => Ok(encode_endian_chunk!(config.endian, arr, u64)),
+            ZArray::Float32(arr) => Ok(encode_endian_chunk!(config.endian, arr, f32)),
+            ZArray::Float64(arr) => Ok(encode_endian_chunk!(config.endian, arr, f64)),
+            ZArray::Complex64(_) => Err(CharizarrError::UnimplementedError(
                 "This is ignored for now",
             )),
-            Chunk::Complex128(_) => Err(CharizarrError::UnimplementedError(
+            ZArray::Complex128(_) => Err(CharizarrError::UnimplementedError(
                 "This is ignored for now",
             )),
-            Chunk::Raw8(_) => Err(CharizarrError::UnimplementedError(
+            ZArray::Raw8(_) => Err(CharizarrError::UnimplementedError(
                 "This is ignored for now",
             )),
-            Chunk::Raw16(_) => Err(CharizarrError::UnimplementedError(
+            ZArray::Raw16(_) => Err(CharizarrError::UnimplementedError(
                 "This is ignored for now",
             )),
         }
@@ -122,7 +122,7 @@ impl ByteToArrayCodec for BytesCodec {
         data_type: &DataType,
         config: &Value,
         data: &[u8],
-    ) -> Result<Chunk, CharizarrError> {
+    ) -> Result<ZArray, CharizarrError> {
         let config = self.parse_config(config)?;
         let DataType::Core(data_type) = data_type else {
             return Err(CharizarrError::CodecError("Invalid data type".to_string()));
@@ -177,12 +177,12 @@ mod tests {
 
         let data_type = DataType::Core(CoreDataType::Int32);
         let i_array = Array::from_vec(vec![1, 2, 3, 4]).into_dyn();
-        let data = Chunk::Int32(i_array.clone());
+        let data = ZArray::Int32(i_array.clone());
 
         let encoded = codec.encode(&data_type, &config, &data).unwrap();
         let decoded = codec.decode(&data_type, &config, &encoded).unwrap();
         let o_array = match decoded {
-            Chunk::Int32(arr) => Some(arr),
+            ZArray::Int32(arr) => Some(arr),
             _ => None,
         }
         .unwrap();

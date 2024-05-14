@@ -9,5 +9,6 @@ pub mod group;
 pub mod metadata;
 pub mod store;
 pub mod stores;
+pub mod zarray;
 
 mod index;
