@@ -37,10 +37,6 @@ impl FileSystemStore {
 }
 
 impl ReadableStore for FileSystemStore {
-    fn name(&self) -> String {
-        self.root.file_name().unwrap().to_str().unwrap().to_string()
-    }
-
     async fn get(&self, key: &str) -> Result<Vec<u8>, CharizarrError> {
         let path = self.root.join(key);
         fs::read(path)

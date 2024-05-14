@@ -1,5 +1,3 @@
-use std::io::Bytes;
-
 use futures::{StreamExt, TryFutureExt};
 use object_store::{path::Path, ObjectMeta, ObjectStore, PutPayload};
 
@@ -14,7 +12,7 @@ pub struct ZarrObjectStore {
 }
 
 impl ZarrObjectStore {
-    pub fn new(store: Box<dyn ObjectStore>, root: Path) -> Self {
+    pub fn create(store: Box<dyn ObjectStore>, root: Path) -> Self {
         Self { store, root }
     }
 
@@ -38,10 +36,6 @@ impl ZarrObjectStore {
 }
 
 impl ReadableStore for ZarrObjectStore {
-    fn name(&self) -> String {
-        self.root.to_string()
-    }
-
     async fn get(&self, key: &str) -> Result<Vec<u8>, CharizarrError> {
         let path = self.root.child(key);
         let result = self

@@ -2,12 +2,14 @@ use std::{collections::HashMap, sync::Arc};
 
 use charizarr::{
     array::ArrayMetadata,
-    zarray::ZArray,
     codec::Codec,
     codecs::{blosc::BloscCodec, gzip::GZipCodec},
     metadata::{DataType, Extension, NodeType, ZarrFormat},
+    zarray::ZArray,
 };
 use ndarray::{Array, ArrayD, IxDyn};
+use object_store::{local::LocalFileSystem, path::Path};
+use serde_json::Value;
 
 #[tokio::test]
 async fn test_roundtrip() {
@@ -23,10 +25,15 @@ async fn test_roundtrip() {
     let store = charizarr::stores::FileSystemStore::create(path.clone())
         .await
         .unwrap();
-    let group = charizarr::group::Group::create(&store, None, None)
+
+    let group_attrs = Some(HashMap::from([(
+        "name".to_string(),
+        Value::String("roundtrip".to_string()),
+    )]));
+    let group = charizarr::group::Group::create(&store, None, group_attrs)
         .await
         .unwrap();
-    assert_eq!(group.name(), "roundtrip.zarr");
+    assert_eq!(group.name(), "roundtrip");
 
     // Create an array
     let metadata = ArrayMetadata {
@@ -90,11 +97,21 @@ async fn test_roundtrip() {
     assert!(set_opt.is_ok());
 
     // Read the array
-    let first_col: ArrayD<u8> = array2.get(Some(vec![0usize..3, 0..1])).await.unwrap().try_into().unwrap();
+    let first_col: ArrayD<u8> = array2
+        .get(Some(vec![0usize..3, 0..1]))
+        .await
+        .unwrap()
+        .try_into()
+        .unwrap();
     let truth = ArrayD::from_shape_vec(IxDyn(&[3, 1]), vec![25u8, 27, 6]).unwrap();
     assert_eq!(first_col, truth);
 
-    let second_col: ArrayD<u8> = array2.get(Some(vec![0usize..3, 1..2])).await.unwrap().try_into().unwrap();
+    let second_col: ArrayD<u8> = array2
+        .get(Some(vec![0usize..3, 1..2]))
+        .await
+        .unwrap()
+        .try_into()
+        .unwrap();
     let truth = ArrayD::from_shape_vec(IxDyn(&[3, 1]), vec![26u8, 28, 7]).unwrap();
     assert_eq!(second_col, truth);
 
@@ -111,6 +128,84 @@ async fn test_roundtrip() {
 
     // Cleanup
     std::fs::remove_dir_all("tests/roundtrip.zarr").unwrap();
+}
+
+#[tokio::test]
+async fn test_local_object_store() {
+    // Create the codec registry
+    let codecs = Some(
+        charizarr::codec_registry::CodecRegistry::default()
+            .register(Codec::ByteToByte(Arc::new(GZipCodec::new())))
+            .register(Codec::ByteToByte(Arc::new(BloscCodec::new()))),
+    );
+
+    // Create the store
+    let local_store = Box::new(LocalFileSystem::new());
+    let path = Path::from_absolute_path(std::env::current_dir().unwrap())
+        .expect("Failed to create store in current directory")
+        .child("tests/roundtrip2.zarr");
+    let store = charizarr::stores::ZarrObjectStore::create(local_store, path.clone());
+
+    let group_attrs = Some(HashMap::from([(
+        "name".to_string(),
+        Value::String("roundtrip2".to_string()),
+    )]));
+    let group = charizarr::group::Group::create(&store, None, group_attrs)
+        .await
+        .unwrap();
+    assert_eq!(group.name(), "roundtrip2");
+
+    // Create an array
+    let metadata = ArrayMetadata {
+        zarr_format: ZarrFormat::V3,
+        node_type: NodeType::Group,
+        shape: vec![3, 2],
+        data_type: DataType::Core(charizarr::data_type::CoreDataType::UInt8),
+        chunk_grid: Extension {
+            name: "regular".to_string(),
+            configuration: serde_json::json!({ "chunk_shape": [3, 2] }),
+        },
+        chunk_key_encoding: Extension {
+            name: "default".to_string(),
+            configuration: serde_json::json!({ "separator": "/" }),
+        },
+        fill_value: serde_json::json!(0),
+        codecs: vec![Extension {
+            name: "bytes".to_string(),
+            configuration: serde_json::json!({"endian": "little"}),
+        }],
+        attributes: Some(HashMap::new()),
+        storage_transformers: None,
+        dimension_names: Some(vec!["y".into(), "x".into()]),
+    };
+
+    let array =
+        charizarr::array::Array::create(&store, Some("rect".into()), metadata, codecs.clone())
+            .await
+            .unwrap();
+
+    let set_raw_data = vec![3u8, 2, 4, 5, 6, 7];
+    let set_array_data = ArrayD::from_shape_vec(IxDyn(&[3, 2]), set_raw_data).unwrap();
+    let chunk = ZArray::UInt8(set_array_data.clone());
+    let write_chunk = array.set_chunk("0/0", &chunk).await;
+    assert!(write_chunk.is_ok());
+
+    // Open the store
+    let local_store2 = Box::new(LocalFileSystem::new());
+    let store2 = charizarr::stores::ZarrObjectStore::create(local_store2, path);
+
+    // Open the group
+    let group2 = charizarr::group::Group::open(&store2, None).await;
+    assert!(group2.is_ok());
+    let group2 = group2.unwrap();
+
+    // Read the array
+    let array2 = group2.get_array("rect", codecs).await;
+    assert!(array2.is_ok());
+    let array2 = array2.unwrap();
+
+    let array_data: ArrayD<u8> = array2.get(None).await.unwrap().try_into().unwrap();
+    assert_eq!(array_data, set_array_data);
 }
 
 #[tokio::test]
@@ -192,8 +287,14 @@ async fn test_read() {
     assert_eq!(&array.metadata.codecs[1].name, &"blosc");
 
     // Test getting a specific slice of the array
-    let array_slice = array.get(Some(vec![0usize..1, 0usize..1, 0usize..1])).await.unwrap();
+    let array_slice = array
+        .get(Some(vec![0usize..1, 0usize..1, 0usize..1]))
+        .await
+        .unwrap();
     let array_data: ArrayD<i16> = array_slice.try_into().unwrap();
-    let expected = Array::from_vec(vec![0i16]).into_dyn().into_shape(IxDyn(&[1, 1, 1])).unwrap();
+    let expected = Array::from_vec(vec![0i16])
+        .into_dyn()
+        .into_shape(IxDyn(&[1, 1, 1]))
+        .unwrap();
     assert_eq!(array_data, expected);
 }
