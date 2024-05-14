@@ -100,6 +100,7 @@ impl ListableStore for FileSystemStore {
         Ok(dirs)
     }
 }
+
 impl WriteableStore for FileSystemStore {
     async fn set(&self, key: &str, value: &[u8]) -> Result<(), CharizarrError> {
         let path = self.root.join(key);
