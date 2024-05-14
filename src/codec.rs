@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::{chunk::Chunk, metadata::DataType};
+use crate::{chunk::Chunk, error::CharizarrError, metadata::DataType};
 
 #[derive(Clone)]
 pub enum Codec {
@@ -30,16 +30,16 @@ pub trait NamedCodec {
 }
 
 pub trait ByteToArrayCodec: NamedCodec  {
-    fn encode(&self, data_type: &DataType, config: &Value, data: &Chunk) -> Result<Vec<u8>, String>;
-    fn decode(&self, data_type: &DataType, config: &Value, data: &[u8]) -> Result<Chunk, String>;
+    fn encode(&self, data_type: &DataType, config: &Value, data: &Chunk) -> Result<Vec<u8>, CharizarrError>;
+    fn decode(&self, data_type: &DataType, config: &Value, data: &[u8]) -> Result<Chunk, CharizarrError>;
 }
 
 pub trait ArrayToArrayCodec: NamedCodec {
-    fn encode(&self, data_type: &DataType, config: &Value, data: &Chunk) -> Result<Chunk, String>;
-    fn decode(&self, data_type: &DataType, config: &Value, data: &Chunk) -> Result<Chunk, String>;
+    fn encode(&self, data_type: &DataType, config: &Value, data: &Chunk) -> Result<Chunk, CharizarrError>;
+    fn decode(&self, data_type: &DataType, config: &Value, data: &Chunk) -> Result<Chunk, CharizarrError>;
 }
 
 pub trait ByteToByteCodec: NamedCodec {
-    fn encode(&self, data_type: &DataType, config: &Value, data: &[u8]) -> Result<Vec<u8>, String>;
-    fn decode(&self, data_type: &DataType, config: &Value, data: &[u8]) -> Result<Vec<u8>, String>;
+    fn encode(&self, data_type: &DataType, config: &Value, data: &[u8]) -> Result<Vec<u8>, CharizarrError>;
+    fn decode(&self, data_type: &DataType, config: &Value, data: &[u8]) -> Result<Vec<u8>, CharizarrError>;
 }

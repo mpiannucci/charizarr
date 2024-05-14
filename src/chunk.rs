@@ -5,6 +5,7 @@ use crate::{
     codec::Codec,
     codec_registry::CodecRegistry,
     data_type::CoreDataType,
+    error::CharizarrError,
     index::ChunkProjection,
     metadata::{DataType, Extension},
 };
@@ -29,9 +30,9 @@ pub enum Chunk {
 }
 
 impl Chunk {
-    pub fn zeros(dtype: &DataType, shape: &[usize]) -> Result<Self, String> {
+    pub fn zeros(dtype: &DataType, shape: &[usize]) -> Result<Self, CharizarrError> {
         let DataType::Core(dtype) = dtype else {
-            return Err("Only core data types are supported".to_string());
+            return Err(CharizarrError::TypeError(dtype.to_string()));
         };
 
         let chunk = match dtype {
@@ -77,7 +78,7 @@ impl Chunk {
 
     /// Set the value of a chunk at a given selection.
     /// TODO: MAKE THIS WAY CLEANER
-    pub fn set(&mut self, sel: &ChunkProjection, value: &Self) -> Result<(), String> {
+    pub fn set(&mut self, sel: &ChunkProjection, value: &Self) -> Result<(), CharizarrError> {
         match self {
             Chunk::Bool(arr) => {
                 let target_chunk: ArrayViewD<bool> = value.try_into()?;
@@ -178,13 +179,13 @@ impl Chunk {
 macro_rules! into_array {
     ($d_name:path, $d_type:ty) => {
         impl TryInto<ArrayD<$d_type>> for Chunk {
-            type Error = String;
+            type Error = CharizarrError;
 
             fn try_into(self) -> Result<ArrayD<$d_type>, Self::Error> {
                 if let $d_name(arr) = self {
                     Ok(arr)
                 } else {
-                    Err(format!("Chunk is not of type {}", stringify!($d_type)))
+                    Err(CharizarrError::TypeError(stringify!($d_type).to_string()))
                 }
             }
         }
@@ -207,14 +208,14 @@ into_array!(Chunk::Complex128, Complex<f64>);
 
 macro_rules! into_array_view {
     ($d_name:path, $d_type:ty) => {
-        impl <'a> TryInto<ArrayViewD<'a, $d_type>> for &'a Chunk {
-            type Error = String;
+        impl<'a> TryInto<ArrayViewD<'a, $d_type>> for &'a Chunk {
+            type Error = CharizarrError;
 
             fn try_into(self) -> Result<ArrayViewD<'a, $d_type>, Self::Error> {
                 if let $d_name(arr) = self {
                     Ok(arr.view())
                 } else {
-                    Err(format!("Chunk is not of type {}", stringify!($d_type)))
+                    Err(CharizarrError::TypeError(stringify!($d_type).to_string()))
                 }
             }
         }
@@ -265,7 +266,7 @@ pub fn decode_chunk(
     codecs: &[Extension],
     data_type: &DataType,
     bytes: Vec<u8>,
-) -> Result<Chunk, String> {
+) -> Result<Chunk, CharizarrError> {
     let mut btb_codecs = vec![];
     let mut bta_codecs = vec![];
     let mut ata_codecs = vec![];
@@ -273,7 +274,6 @@ pub fn decode_chunk(
     codecs.iter().rev().for_each(|codec| {
         let config = codec.configuration.clone();
         let Some(codec) = codec_registry.get(&codec.name) else {
-            println!("Codec not found: {}", codec.name);
             return;
         };
         match codec {
@@ -284,15 +284,18 @@ pub fn decode_chunk(
     });
 
     // byte to byte
-    let bytes = btb_codecs.iter().fold(bytes, |bytes, codec| {
+    let bytes = btb_codecs.iter().try_fold(bytes, |bytes, codec| {
         let (codec, config) = codec;
-        println!("Decoding with codec: {}", codec.resolve_name());
-        codec.decode(data_type, config, &bytes).unwrap()
-    });
+        codec.decode(data_type, config, &bytes)
+    })?;
 
     // byte to array
-    let (bta_codec, bta_config) = bta_codecs.first().unwrap();
-    let arr = bta_codec.decode(data_type, bta_config, &bytes).unwrap();
+    let Some((bta_codec, bta_config)) = bta_codecs.first() else {
+        return Err(CharizarrError::CodecError(
+            "No ByteToArray codec found".to_string(),
+        ));
+    };
+    let arr = bta_codec.decode(data_type, bta_config, &bytes)?;
 
     // array to array
     let arr = ata_codecs.iter().fold(arr, |arr, (codec, config)| {
@@ -307,7 +310,7 @@ pub fn encode_chunk(
     codecs: &[Extension],
     data_type: &DataType,
     arr: &Chunk,
-) -> Result<Vec<u8>, String> {
+) -> Result<Vec<u8>, CharizarrError> {
     let mut ata_codecs = vec![];
     let mut bta_codecs = vec![];
     let mut btb_codecs = vec![];
@@ -326,18 +329,22 @@ pub fn encode_chunk(
     });
 
     // array to array
-    let new_arr = ata_codecs.iter().fold(arr.clone(), |arr, (codec, config)| {
-        codec.encode(data_type, config, &arr).unwrap()
-    });
+    let new_arr = ata_codecs
+        .iter()
+        .try_fold(arr.clone(), |arr, (codec, config)| {
+            codec.encode(data_type, config, &arr)
+        })?;
 
     // array to byte
     let (bta_codec, bta_config) = bta_codecs.first().unwrap();
-    let bytes = bta_codec.encode(data_type, bta_config, &new_arr).unwrap();
+    let bytes = bta_codec.encode(data_type, bta_config, &new_arr)?;
 
     // byte to byte
-    let bytes = btb_codecs.iter().fold(bytes, |bytes, (codec, config)| {
-        codec.encode(data_type, config, &bytes).unwrap()
-    });
+    let bytes = btb_codecs
+        .iter()
+        .try_fold(bytes, |bytes, (codec, config)| {
+            codec.encode(data_type, config, &bytes)
+        })?;
 
     Ok(bytes)
 }

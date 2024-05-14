@@ -8,6 +8,7 @@ use serde_json::Value;
 
 use crate::{
     codec::{ByteToByteCodec, NamedCodec},
+    error::CharizarrError,
     metadata::DataType,
 };
 
@@ -37,8 +38,9 @@ impl GZipCodec {
         Self {}
     }
 
-    fn parse_config(&self, config: &Value) -> Result<GZipCodecConfig, String> {
-        serde_json::from_value::<GZipCodecConfig>(config.clone()).map_err(|e| e.to_string())
+    fn parse_config(&self, config: &Value) -> Result<GZipCodecConfig, CharizarrError> {
+        serde_json::from_value::<GZipCodecConfig>(config.clone())
+            .map_err(|e| CharizarrError::CodecError(e.to_string()))
     }
 }
 
@@ -54,11 +56,15 @@ impl ByteToByteCodec for GZipCodec {
         _data_type: &DataType,
         config: &Value,
         data: &[u8],
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, CharizarrError> {
         let level = self.parse_config(config)?.into();
         let mut encoder = GzEncoder::new(Vec::new(), level);
-        encoder.write_all(data).map_err(|e| e.to_string())?;
-        let out = encoder.finish().map_err(|e| e.to_string())?;
+        encoder
+            .write_all(data)
+            .map_err(|e| CharizarrError::CodecError(e.to_string()))?;
+        let out = encoder
+            .finish()
+            .map_err(|e| CharizarrError::CodecError(e.to_string()))?;
         Ok(out)
     }
 
@@ -67,11 +73,11 @@ impl ByteToByteCodec for GZipCodec {
         _data_type: &DataType,
         _config: &Value,
         data: &[u8],
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, CharizarrError> {
         let mut out = Vec::new();
         let _ = GzDecoder::new(data)
             .read_to_end(&mut out)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| CharizarrError::CodecError(e.to_string()))?;
         Ok(out)
     }
 }

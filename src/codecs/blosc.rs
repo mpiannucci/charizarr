@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use crate::{
     codec::{ByteToByteCodec, NamedCodec},
+    error::CharizarrError,
     metadata::DataType,
 };
 
@@ -113,8 +114,9 @@ impl BloscCodec {
         Self {}
     }
 
-    fn parse_config(&self, config: &Value) -> Result<BloscCodecConfig, String> {
-        serde_json::from_value::<BloscCodecConfig>(config.clone()).map_err(|e| e.to_string())
+    fn parse_config(&self, config: &Value) -> Result<BloscCodecConfig, CharizarrError> {
+        serde_json::from_value::<BloscCodecConfig>(config.clone())
+            .map_err(|e| CharizarrError::CodecError(e.to_string()))
     }
 }
 
@@ -130,7 +132,7 @@ impl ByteToByteCodec for BloscCodec {
         _data_type: &DataType,
         config: &Value,
         data: &[u8],
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, CharizarrError> {
         let config = self.parse_config(config)?;
         let context = Context::from(config);
 
@@ -143,7 +145,11 @@ impl ByteToByteCodec for BloscCodec {
         _data_type: &DataType,
         _config: &Value,
         data: &[u8],
-    ) -> Result<Vec<u8>, String> {
-        unsafe { decompress_bytes(data).map_err(|_| String::from("Failed to decompress data")) }
+    ) -> Result<Vec<u8>, CharizarrError> {
+        unsafe {
+            decompress_bytes(data).map_err(|_| {
+                CharizarrError::CodecError(String::from("Failed to decompress data with Blosc"))
+            })
+        }
     }
 }

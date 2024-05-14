@@ -5,11 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    chunk::{decode_chunk, encode_chunk, Chunk},
-    codec_registry::CodecRegistry,
-    index::BasicIndexIterator,
-    metadata::{DataType, Extension, NodeType, ZarrFormat},
-    store::{ListableStore, ReadableStore, WriteableStore},
+    chunk::{decode_chunk, encode_chunk, Chunk}, codec_registry::CodecRegistry, error::CharizarrError, index::BasicIndexIterator, metadata::{DataType, Extension, NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -48,12 +44,12 @@ where
         store: &'a T,
         path: Option<String>,
         codecs: Option<CodecRegistry>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, CharizarrError> {
         let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
         let metadata_path = format!("{path}zarr.json");
         let raw_metadata = store.get(&metadata_path).await?;
         let meta = serde_json::from_slice::<ArrayMetadata>(&raw_metadata)
-            .map_err(|e| format!("Failed to parse group metadata: {e}"))?;
+            .map_err(|e| CharizarrError::ArrayError(format!("Failed to parse metadata: {e}")))?;
 
         let codecs = codecs.unwrap_or_else(|| CodecRegistry::default());
 
@@ -70,11 +66,11 @@ where
         path: Option<String>,
         metadata: ArrayMetadata,
         codecs: Option<CodecRegistry>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, CharizarrError> {
         let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
         let metadata_path = format!("{path}zarr.json");
         let raw_metadata = serde_json::to_vec(&metadata)
-            .map_err(|e| format!("Failed to serialize metadata: {e}"))?;
+            .map_err(|e| CharizarrError::ArrayError(format!("Failed to serialize metadata: {e}")))?;
         store.set(&metadata_path, &raw_metadata).await?;
 
         let codecs = codecs.unwrap_or_else(|| CodecRegistry::default());
@@ -88,14 +84,14 @@ where
     }
 
     /// Get a raw chunk from the store, without decoding it
-    pub async fn get_raw_chunk(&self, key: &str) -> Result<Vec<u8>, String> {
+    pub async fn get_raw_chunk(&self, key: &str) -> Result<Vec<u8>, CharizarrError> {
         let chunk_path = format!("{path}c/{key}", path = self.path);
         self.store.get(&chunk_path).await
     }
 
     /// Get a chunk from the store, decoding it according to the array's metadata
     /// and the codecs provided to the array's registry
-    pub async fn get_chunk(&self, key: &str) -> Result<Chunk, String> {
+    pub async fn get_chunk(&self, key: &str) -> Result<Chunk, CharizarrError> {
         let bytes = self.get_raw_chunk(key).await?;
         let data_type = self.dtype();
         let chunk = decode_chunk(&self.codecs, &self.metadata.codecs, data_type, bytes)?
@@ -104,13 +100,13 @@ where
     }
 
     /// Set a raw chunk in the store, without encoding it
-    pub async fn set_raw_chunk(&self, key: &str, data: &[u8]) -> Result<(), String> {
+    pub async fn set_raw_chunk(&self, key: &str, data: &[u8]) -> Result<(), CharizarrError> {
         let chunk_path = format!("{path}c/{key}", path = self.path);
         self.store.set(&chunk_path, data).await
     }
 
     /// Set a chunk in the store, encoding it according to the array's metadata
-    pub async fn set_chunk(&self, key: &str, chunk: &Chunk) -> Result<(), String> {
+    pub async fn set_chunk(&self, key: &str, chunk: &Chunk) -> Result<(), CharizarrError> {
         let data_type = self.dtype();
         let data = encode_chunk(&self.codecs, &self.metadata.codecs, data_type, chunk)?;
         self.set_raw_chunk(&key, &data).await
@@ -147,7 +143,7 @@ where
     /// This should use Index but async assosciated types are not yet stable
     ///
     /// Also maybe should use ndarray slice or sliceinfo as primitive
-    pub async fn get(&self, index: Option<Vec<Range<usize>>>) -> Result<Chunk, String> {
+    pub async fn get(&self, index: Option<Vec<Range<usize>>>) -> Result<Chunk, CharizarrError> {
         let array_shape = self.shape();
 
         let index = index.unwrap_or_else(|| {
@@ -199,7 +195,7 @@ where
     /// This should use Index but async assosciated types are not yet stable
     ///
     /// Also maybe should use ndarray slice or sliceinfo as primitive
-    pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: &Chunk) -> Result<(), String> {
+    pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: &Chunk) -> Result<(), CharizarrError> {
         let array_shape = self.shape();
         let chunk_shape = self.chunk_shape();
 

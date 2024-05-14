@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use tokio::fs;
 
-use crate::store::{ListableStore, ReadableStore, WriteableStore};
+use crate::{
+    error::CharizarrError,
+    store::{ListableStore, ReadableStore, WriteableStore},
+};
 
 /// Async store backed by the filesystem
 /// Adapted from https://zarr-specs.readthedocs.io/en/latest/v3/stores/filesystem/v1.0.html
@@ -12,12 +15,14 @@ pub struct FileSystemStore {
 
 impl FileSystemStore {
     /// Open an existing filesystem store
-    pub async fn open(root: PathBuf) -> Result<Self, String> {
-        let exists = fs::try_exists(&root)
-            .await
-            .map_err(|e| format!("Failed to check if root exists: {e}"))?;
+    pub async fn open(root: PathBuf) -> Result<Self, CharizarrError> {
+        let exists = fs::try_exists(&root).await.map_err(|e| {
+            CharizarrError::StoreError(format!("Failed to check if root exists: {e}"))
+        })?;
         if !exists {
-            return Err("Root directory does not exist".to_string());
+            return Err(CharizarrError::StoreError(
+                "Root directory does not exist".to_string(),
+            ));
         }
         Ok(Self { root })
     }
@@ -36,26 +41,24 @@ impl ReadableStore for FileSystemStore {
         self.root.file_name().unwrap().to_str().unwrap().to_string()
     }
 
-    async fn get(&self, key: &str) -> Result<Vec<u8>, String> {
+    async fn get(&self, key: &str) -> Result<Vec<u8>, CharizarrError> {
         let path = self.root.join(key);
         fs::read(path)
             .await
-            .map_err(|e| format!("Failed to read file: {e}"))
+            .map_err(|e| CharizarrError::StoreError(format!("Failed to read file: {e}")))
     }
 }
 
 impl ListableStore for FileSystemStore {
-    async fn list(&self) -> Result<Vec<String>, String> {
+    async fn list(&self) -> Result<Vec<String>, CharizarrError> {
         let mut children = fs::read_dir(&self.root)
             .await
-            .map_err(|e| format!("Failed to read directory: {e}"))?;
+            .map_err(|e| CharizarrError::StoreError(format!("Failed to read directory: {e}")))?;
 
         let mut dirs = Vec::new();
-        while let Some(child) = children
-            .next_entry()
-            .await
-            .map_err(|e| format!("Failed to read directory entry: {e}"))?
-        {
+        while let Some(child) = children.next_entry().await.map_err(|e| {
+            CharizarrError::StoreError(format!("Failed to read directory entry: {e}"))
+        })? {
             if child.path().is_dir() {
                 dirs.push(child.file_name().to_str().unwrap().to_string());
             }
@@ -64,7 +67,7 @@ impl ListableStore for FileSystemStore {
         Ok(dirs)
     }
 
-    async fn list_prefix(&self, prefix: &str) -> Result<Vec<String>, String> {
+    async fn list_prefix(&self, prefix: &str) -> Result<Vec<String>, CharizarrError> {
         let filtered = self
             .list()
             .await?
@@ -75,7 +78,7 @@ impl ListableStore for FileSystemStore {
         Ok(filtered)
     }
 
-    async fn list_dir(&self, prefix: Option<&str>) -> Result<Vec<String>, String> {
+    async fn list_dir(&self, prefix: Option<&str>) -> Result<Vec<String>, CharizarrError> {
         let path = if let Some(key) = prefix {
             self.root.join(key)
         } else {
@@ -83,14 +86,12 @@ impl ListableStore for FileSystemStore {
         };
         let mut children = fs::read_dir(&path)
             .await
-            .map_err(|e| format!("Failed to read directory: {e}"))?;
+            .map_err(|e| CharizarrError::StoreError(format!("Failed to read directory: {e}")))?;
 
         let mut dirs = Vec::new();
-        while let Some(child) = children
-            .next_entry()
-            .await
-            .map_err(|e| format!("Failed to read directory entry: {e}"))?
-        {
+        while let Some(child) = children.next_entry().await.map_err(|e| {
+            CharizarrError::StoreError(format!("Failed to read directory entry: {e}"))
+        })? {
             if child.path().is_dir() {
                 dirs.push(child.file_name().to_str().unwrap().to_string());
             }
@@ -100,36 +101,36 @@ impl ListableStore for FileSystemStore {
     }
 }
 impl WriteableStore for FileSystemStore {
-    async fn set(&self, key: &str, value: &[u8]) -> Result<(), String> {
+    async fn set(&self, key: &str, value: &[u8]) -> Result<(), CharizarrError> {
         let path = self.root.join(key);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await.map_err(|e| {
-                format!(
+                CharizarrError::StoreError(format!(
                     "Failed to create parent directory {d}: {e}",
                     d = parent.to_str().unwrap()
-                )
+                ))
             })?;
         }
         path.parent().map(|parent| fs::create_dir_all(parent));
         fs::write(&path, value).await.map_err(|e| {
-            format!(
+            CharizarrError::StoreError(format!(
                 "Failed to write file {file}: {e}",
                 file = path.to_str().unwrap()
-            )
+            ))
         })
     }
 
-    async fn erase(&self, key: &str) -> Result<(), String> {
+    async fn erase(&self, key: &str) -> Result<(), CharizarrError> {
         let path = self.root.join(key);
         fs::remove_file(&path).await.map_err(|e| {
-            format!(
+            CharizarrError::StoreError(format!(
                 "Failed to remove file {file}: {e}",
                 file = path.to_str().unwrap()
-            )
+            ))
         })
     }
 
-    async fn erase_values(&self, keys: &[&str]) -> Result<(), String> {
+    async fn erase_values(&self, keys: &[&str]) -> Result<(), CharizarrError> {
         let futures = keys.iter().map(|key| {
             let path = self.root.join(key);
             fs::remove_file(path)
@@ -142,10 +143,10 @@ impl WriteableStore for FileSystemStore {
         Ok(())
     }
 
-    async fn erase_prefix(&self, prefix: &str) -> Result<(), String> {
+    async fn erase_prefix(&self, prefix: &str) -> Result<(), CharizarrError> {
         let path = self.root.join(prefix);
         fs::remove_dir_all(path)
             .await
-            .map_err(|e| format!("Failed to remove directory: {e}"))
+            .map_err(|e| CharizarrError::StoreError(format!("Failed to remove directory: {e}")))
     }
 }

@@ -4,10 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    array::{Array, ArrayMetadata},
-    codec_registry::CodecRegistry,
-    metadata::{NodeType, ZarrFormat},
-    store::{ListableStore, ReadableStore, WriteableStore},
+    array::{Array, ArrayMetadata}, codec_registry::CodecRegistry, error::CharizarrError, metadata::{NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -31,13 +28,13 @@ where
     T: ReadableStore + ListableStore + WriteableStore,
 {
     /// Open an existing group from a store. If the zarr.json metadata file is not found,
-    pub async fn open(store: &'a T, path: Option<String>) -> Result<Self, String> {
+    pub async fn open(store: &'a T, path: Option<String>) -> Result<Self, CharizarrError> {
         let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
 
         let metadata_path = format!("{path}zarr.json");
         let raw_metadata = store.get(&metadata_path).await?;
         let metadata = serde_json::from_slice::<GroupMetadata>(&raw_metadata)
-            .map_err(|e| format!("Failed to parse group metadata: {e}"))?;
+            .map_err(|e| CharizarrError::GroupError(format!("Failed to parse group metadata: {e}")))?;
 
         Ok(Self {
             store,
@@ -51,7 +48,7 @@ where
         store: &'a T,
         path: Option<String>,
         attributes: Option<HashMap<String, Value>>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, CharizarrError> {
         let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
 
         let attributes = attributes
@@ -63,7 +60,7 @@ where
             attributes: Some(attributes),
         };
         let raw_metadata = serde_json::to_vec(&metadata)
-            .map_err(|e| format!("Failed to serialize group metadata: {e}"))?;
+            .map_err(|e| CharizarrError::GroupError(format!("Failed to serialize group metadata: {e}")))?;
         let metadata_path = format!("{path}zarr.json");
         store.set(&metadata_path, &raw_metadata).await?;
 
@@ -89,19 +86,19 @@ where
         &self,
         name: &str,
         codecs: Option<CodecRegistry>,
-    ) -> Result<Array<'a, T>, String> {
+    ) -> Result<Array<'a, T>, CharizarrError> {
         let path = format!("{path}{name}", path = self.path);
         Array::open(self.store, Some(path), codecs).await
     }
 
     /// Get an child group from the group
-    pub async fn get_group(&self, name: &str) -> Result<Group<'a, T>, String> {
+    pub async fn get_group(&self, name: &str) -> Result<Group<'a, T>, CharizarrError> {
         let path = format!("{path}{name}", path = self.path);
         Group::open(self.store, Some(path)).await
     }
 
     /// Create a new child group in the group
-    pub async fn create_group(&self, name: &str) -> Result<Group<'a, T>, String> {
+    pub async fn create_group(&self, name: &str) -> Result<Group<'a, T>, CharizarrError> {
         let path = format!("{path}{name}", path = self.path);
         Group::create(self.store, Some(path), None).await
     }
@@ -112,10 +109,9 @@ where
         name: &str,
         metadata: ArrayMetadata,
         codecs: Option<CodecRegistry>,
-    ) -> Result<Array<'a, T>, String> {
+    ) -> Result<Array<'a, T>, CharizarrError> {
         let path = format!("{path}{name}", path = self.path);
-        let array = Array::create(self.store, Some(path), metadata, codecs).await?;
-        Ok(array)
+        Array::create(self.store, Some(path), metadata, codecs).await
     }
 }
 

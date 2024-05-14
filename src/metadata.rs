@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -32,4 +34,13 @@ pub enum NodeType {
 pub enum DataType {
     Core(CoreDataType),
     Extension(Extension),
+}
+
+impl Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataType::Core(core) => write!(f, "{:?}", core),
+            DataType::Extension(ext) => write!(f, "{}", ext.name),
+        }
+    }
 }
