@@ -236,6 +236,36 @@ into_array_view!(Chunk::Float64, f64);
 into_array_view!(Chunk::Complex64, Complex<f32>);
 into_array_view!(Chunk::Complex128, Complex<f64>);
 
+macro_rules! into_array_view_mut {
+    ($d_name:path, $d_type:ty) => {
+        impl<'a> TryInto<ArrayViewMutD<'a, $d_type>> for &'a mut Chunk {
+            type Error = CharizarrError;
+
+            fn try_into(self) -> Result<ArrayViewMutD<'a, $d_type>, Self::Error> {
+                if let $d_name(arr) = self {
+                    Ok(arr.view_mut())
+                } else {
+                    Err(CharizarrError::TypeError(stringify!($d_type).to_string()))
+                }
+            }
+        }
+    };
+}
+
+into_array_view_mut!(Chunk::Bool, bool);
+into_array_view_mut!(Chunk::Int8, i8);
+into_array_view_mut!(Chunk::Int16, i16);
+into_array_view_mut!(Chunk::Int32, i32);
+into_array_view_mut!(Chunk::Int64, i64);
+into_array_view_mut!(Chunk::UInt8, u8);
+into_array_view_mut!(Chunk::UInt16, u16);
+into_array_view_mut!(Chunk::UInt32, u32);
+into_array_view_mut!(Chunk::UInt64, u64);
+into_array_view_mut!(Chunk::Float32, f32);
+into_array_view_mut!(Chunk::Float64, f64);
+into_array_view_mut!(Chunk::Complex64, Complex<f32>);
+into_array_view_mut!(Chunk::Complex128, Complex<f64>);
+
 macro_rules! into_chunk {
     ($d_name:expr, $d_type:ty) => {
         impl From<Vec<$d_type>> for Chunk {
