@@ -60,7 +60,7 @@ async fn test_roundtrip() {
     let set_raw_data = vec![3u8, 2, 4, 5, 6, 7];
     let set_array_data = ArrayD::from_shape_vec(IxDyn(&[3, 2]), set_raw_data).unwrap();
     let chunk = Chunk::UInt8(set_array_data.clone());
-    let write_chunk = array.set_chunk("0/0", chunk).await;
+    let write_chunk = array.set_chunk("0/0", &chunk).await;
     assert!(write_chunk.is_ok());
 
     // Open the store
@@ -86,7 +86,7 @@ async fn test_roundtrip() {
     let new_values = ArrayD::from_shape_vec(IxDyn(&[2, 2]), vec![25, 26, 27, 28]).unwrap();
     let new_value = Chunk::UInt8(new_values);
     let sel = vec![0usize..2, 0..2];
-    let set_opt = array2.set(Some(sel), new_value).await;
+    let set_opt = array2.set(Some(sel), &new_value).await;
     assert!(set_opt.is_ok());
 
     // Read the array
@@ -102,7 +102,7 @@ async fn test_roundtrip() {
     let new_set_raw_data = vec![10u8, 11, 12, 13, 14, 15];
     let new_set_array_data = ArrayD::from_shape_vec(IxDyn(&[3, 2]), new_set_raw_data).unwrap();
     let new_array_values = Chunk::UInt8(new_set_array_data.clone());
-    let result = array2.set(None, new_array_values).await;
+    let result = array2.set(None, &new_array_values).await;
     assert!(result.is_ok());
 
     // Read the array

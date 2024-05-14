@@ -1,13 +1,13 @@
 use std::{collections::HashMap, ops::Range};
 
-use futures::{future::try_join_all, StreamExt};
+use futures::future::try_join_all;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
     chunk::{decode_chunk, encode_chunk, Chunk},
     codec_registry::CodecRegistry,
-    index::{BasicIndexIterator, ChunkProjection},
+    index::BasicIndexIterator,
     metadata::{DataType, Extension, NodeType, ZarrFormat},
     store::{ListableStore, ReadableStore, WriteableStore},
 };
@@ -110,7 +110,7 @@ where
     }
 
     /// Set a chunk in the store, encoding it according to the array's metadata
-    pub async fn set_chunk(&self, key: &str, chunk: Chunk) -> Result<(), String> {
+    pub async fn set_chunk(&self, key: &str, chunk: &Chunk) -> Result<(), String> {
         let data_type = self.dtype();
         let data = encode_chunk(&self.codecs, &self.metadata.codecs, data_type, chunk)?;
         self.set_raw_chunk(&key, &data).await
@@ -184,7 +184,7 @@ where
         let chunks = try_join_all(chunks).await?;
 
         // Insert the chunks into the correct place in the output array
-        chunks.into_iter().for_each(|(chunk_info, chunk)| {
+        chunks.iter().for_each(|(chunk_info, chunk)| {
             // TODO: Handle error
             let _ = out_array.set(&chunk_info, chunk);
         });
@@ -199,7 +199,7 @@ where
     /// This should use Index but async assosciated types are not yet stable
     ///
     /// Also maybe should use ndarray slice or sliceinfo as primitive
-    pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: Chunk) -> Result<(), String> {
+    pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: &Chunk) -> Result<(), String> {
         let array_shape = self.shape();
         let chunk_shape = self.chunk_shape();
 
@@ -210,8 +210,27 @@ where
                 .collect::<Vec<Range<usize>>>()
         });
 
-        let chunks =
-            BasicIndexIterator::new(array_shape, chunk_shape, index).map(|chunk_info| {
+        let chunks = BasicIndexIterator::new(array_shape, chunk_shape, index).map(|chunk_info| {
+            let chunk_key = chunk_info
+                .chunk_coords
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<String>>()
+                .join("/");
+
+            async move {
+                self.get_chunk(&chunk_key)
+                    .await
+                    .map(|chunk| (chunk_info, chunk))
+            }
+        });
+
+        // Trigger the fetch on all of the chunks, then overwrite the values
+        // in the chunks with the new values
+        let mut existing_chunks = try_join_all(chunks).await?;
+        let new_chunks = existing_chunks
+            .iter_mut()
+            .map(|(chunk_info, chunk)| async move {
                 let chunk_key = chunk_info
                     .chunk_coords
                     .iter()
@@ -219,33 +238,8 @@ where
                     .collect::<Vec<String>>()
                     .join("/");
 
-                async move {
-                    self.get_chunk(&chunk_key)
-                        .await
-                        .map(|chunk| (chunk_info, chunk))
-                }
-            });
-
-        // Trigger the fetch on all of the chunks, then overwrite the values
-        // in the chunks with the new values
-        let new_chunks = try_join_all(chunks)
-            .await?
-            .into_iter()
-            .map(|(chunk_info, mut chunk)| {
-                // TODO: THIS IS BAD
-                let value = value.clone();
-
-                async move {
-                    let chunk_key = chunk_info
-                        .chunk_coords
-                        .iter()
-                        .map(|i| i.to_string())
-                        .collect::<Vec<String>>()
-                        .join("/");
-
-                    chunk.set(&chunk_info, value)?;
-                    self.set_chunk(&chunk_key, chunk).await
-                }
+                chunk.set(&chunk_info, &value)?;
+                self.set_chunk(&chunk_key, chunk).await
             });
 
         // Trigger futures, wait for all to complete
