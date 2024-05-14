@@ -10,8 +10,7 @@ This crate requires rust 1.75 or later because it uses async traits.
 
 ### Progress
 
-- [x] create filesystem zarr store
-- [ ] create cloud zarr store
+- [x] create object store zarr store
 - [ ] virtual zarr store (kerchunk, reference manifest)
 - [x] read zarr group hierarchy
 - [x] write zarr group hierarchy
@@ -21,6 +20,7 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [x] write zarr array chunks
 - [x] read zarr array data
 - [x] write zarr array data
+- [ ] custom separator values for group and array names
 - [ ] fill values
 - [x] bytes codec
 - [x] blosc codec

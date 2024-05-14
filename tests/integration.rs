@@ -8,7 +8,10 @@ use charizarr::{
     zarray::ZArray,
 };
 use ndarray::{Array, ArrayD, IxDyn};
-use object_store::{local::LocalFileSystem, path::Path};
+use object_store::{
+    local::LocalFileSystem,
+    path::Path,
+};
 use serde_json::Value;
 
 #[tokio::test]
@@ -21,10 +24,12 @@ async fn test_roundtrip() {
     );
 
     // Create the store
-    let path = std::path::PathBuf::from("tests/roundtrip.zarr");
-    let store = charizarr::stores::FileSystemStore::create(path.clone())
-        .await
-        .unwrap();
+    let local_store = Box::new(LocalFileSystem::new());
+    let path = Path::from_absolute_path(std::env::current_dir().unwrap())
+        .expect("Failed to create store in current directory")
+        .child("tests")
+        .child("roundtrip.zarr");
+    let store = charizarr::stores::ZarrObjectStore::create(local_store, path.clone());
 
     let group_attrs = Some(HashMap::from([(
         "name".to_string(),
@@ -71,10 +76,8 @@ async fn test_roundtrip() {
     assert!(write_chunk.is_ok());
 
     // Open the store
-    let store2 = charizarr::stores::FileSystemStore::open(path).await;
-
-    assert!(store2.is_ok());
-    let store2 = store2.unwrap();
+    let local_store2 = Box::new(LocalFileSystem::new());
+    let store2 = charizarr::stores::ZarrObjectStore::create(local_store2, path);
 
     // Open the group
     let group2 = charizarr::group::Group::open(&store2, None).await;
@@ -131,84 +134,6 @@ async fn test_roundtrip() {
 }
 
 #[tokio::test]
-async fn test_local_object_store() {
-    // Create the codec registry
-    let codecs = Some(
-        charizarr::codec_registry::CodecRegistry::default()
-            .register(Codec::ByteToByte(Arc::new(GZipCodec::new())))
-            .register(Codec::ByteToByte(Arc::new(BloscCodec::new()))),
-    );
-
-    // Create the store
-    let local_store = Box::new(LocalFileSystem::new());
-    let path = Path::from_absolute_path(std::env::current_dir().unwrap())
-        .expect("Failed to create store in current directory")
-        .child("tests/roundtrip2.zarr");
-    let store = charizarr::stores::ZarrObjectStore::create(local_store, path.clone());
-
-    let group_attrs = Some(HashMap::from([(
-        "name".to_string(),
-        Value::String("roundtrip2".to_string()),
-    )]));
-    let group = charizarr::group::Group::create(&store, None, group_attrs)
-        .await
-        .unwrap();
-    assert_eq!(group.name(), "roundtrip2");
-
-    // Create an array
-    let metadata = ArrayMetadata {
-        zarr_format: ZarrFormat::V3,
-        node_type: NodeType::Group,
-        shape: vec![3, 2],
-        data_type: DataType::Core(charizarr::data_type::CoreDataType::UInt8),
-        chunk_grid: Extension {
-            name: "regular".to_string(),
-            configuration: serde_json::json!({ "chunk_shape": [3, 2] }),
-        },
-        chunk_key_encoding: Extension {
-            name: "default".to_string(),
-            configuration: serde_json::json!({ "separator": "/" }),
-        },
-        fill_value: serde_json::json!(0),
-        codecs: vec![Extension {
-            name: "bytes".to_string(),
-            configuration: serde_json::json!({"endian": "little"}),
-        }],
-        attributes: Some(HashMap::new()),
-        storage_transformers: None,
-        dimension_names: Some(vec!["y".into(), "x".into()]),
-    };
-
-    let array =
-        charizarr::array::Array::create(&store, Some("rect".into()), metadata, codecs.clone())
-            .await
-            .unwrap();
-
-    let set_raw_data = vec![3u8, 2, 4, 5, 6, 7];
-    let set_array_data = ArrayD::from_shape_vec(IxDyn(&[3, 2]), set_raw_data).unwrap();
-    let chunk = ZArray::UInt8(set_array_data.clone());
-    let write_chunk = array.set_chunk("0/0", &chunk).await;
-    assert!(write_chunk.is_ok());
-
-    // Open the store
-    let local_store2 = Box::new(LocalFileSystem::new());
-    let store2 = charizarr::stores::ZarrObjectStore::create(local_store2, path);
-
-    // Open the group
-    let group2 = charizarr::group::Group::open(&store2, None).await;
-    assert!(group2.is_ok());
-    let group2 = group2.unwrap();
-
-    // Read the array
-    let array2 = group2.get_array("rect", codecs).await;
-    assert!(array2.is_ok());
-    let array2 = array2.unwrap();
-
-    let array_data: ArrayD<u8> = array2.get(None).await.unwrap().try_into().unwrap();
-    assert_eq!(array_data, set_array_data);
-}
-
-#[tokio::test]
 async fn test_read() {
     // Create the codec registry
     let codecs = Some(
@@ -218,10 +143,12 @@ async fn test_read() {
     );
 
     // Open the store
-    let path = std::path::PathBuf::from("tests/data.zarr");
-    let store = charizarr::stores::FileSystemStore::open(path)
-        .await
-        .unwrap();
+    let local_store = Box::new(LocalFileSystem::new());
+    let path = Path::from_absolute_path(std::env::current_dir().unwrap())
+        .expect("Failed to create store in current directory")
+        .child("tests")
+        .child("data.zarr");
+    let store = charizarr::stores::ZarrObjectStore::create(local_store, path);
 
     // Read in a group
     let group = charizarr::group::Group::open(&store, None).await.unwrap();
