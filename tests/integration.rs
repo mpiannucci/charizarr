@@ -1,17 +1,13 @@
 use std::{collections::HashMap, sync::Arc};
 
 use charizarr::{
-    array::ArrayMetadata,
     codec::Codec,
     codecs::{blosc::BloscCodec, gzip::GZipCodec},
-    metadata::{DataType, Extension, NodeType, ZarrFormat},
+    metadata::{DataType, Extension, ZarrFormat},
     zarray::ZArray,
 };
 use ndarray::{Array, ArrayD, IxDyn};
-use object_store::{
-    local::LocalFileSystem,
-    path::Path,
-};
+use object_store::{local::LocalFileSystem, path::Path};
 use serde_json::Value;
 
 #[tokio::test]
@@ -31,43 +27,37 @@ async fn test_roundtrip() {
         .child("roundtrip.zarr");
     let store = charizarr::stores::ZarrObjectStore::create(local_store, path.clone());
 
-    let group_attrs = Some(HashMap::from([(
-        "name".to_string(),
-        Value::String("roundtrip".to_string()),
-    )]));
-    let group = charizarr::group::Group::create(&store, None, group_attrs)
-        .await
-        .unwrap();
+    let group = charizarr::group::Group::create(
+        &store,
+        None,
+        Some(HashMap::from([(
+            "name".to_string(),
+            Value::String("roundtrip".to_string()),
+        )])),
+    )
+    .await
+    .unwrap();
     assert_eq!(group.name(), "roundtrip");
 
     // Create an array
-    let metadata = ArrayMetadata {
-        zarr_format: ZarrFormat::V3,
-        node_type: NodeType::Group,
-        shape: vec![3, 2],
-        data_type: DataType::Core(charizarr::data_type::CoreDataType::UInt8),
-        chunk_grid: Extension {
-            name: "regular".to_string(),
-            configuration: serde_json::json!({ "chunk_shape": [3, 2] }),
-        },
-        chunk_key_encoding: Extension {
-            name: "default".to_string(),
-            configuration: serde_json::json!({ "separator": "/" }),
-        },
-        fill_value: serde_json::json!(0),
-        codecs: vec![Extension {
+    let array = charizarr::array::Array::create(
+        &store,
+        Some("rect".into()),
+        codecs.clone(),
+        vec![3, 2],
+        vec![3, 2],
+        None,
+        DataType::Core(charizarr::data_type::CoreDataType::UInt8),
+        serde_json::json!(0),
+        vec![Extension {
             name: "bytes".to_string(),
             configuration: serde_json::json!({"endian": "little"}),
         }],
-        attributes: Some(HashMap::new()),
-        storage_transformers: None,
-        dimension_names: Some(vec!["y".into(), "x".into()]),
-    };
-
-    let array =
-        charizarr::array::Array::create(&store, Some("rect".into()), metadata, codecs.clone())
-            .await
-            .unwrap();
+        Some(vec!["y".into(), "x".into()]),
+        Some(HashMap::new()),
+    )
+    .await
+    .unwrap();
 
     let set_raw_data = vec![3u8, 2, 4, 5, 6, 7];
     let set_array_data = ArrayD::from_shape_vec(IxDyn(&[3, 2]), set_raw_data).unwrap();

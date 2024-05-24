@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    chunk::{decode_chunk, encode_chunk}, codec_registry::CodecRegistry, error::CharizarrError, index::BasicIndexIterator, metadata::{DataType, Extension, NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}, zarray::ZArray
+    chunk::{decode_chunk, encode_chunk}, codec_registry::{self, CodecRegistry}, error::CharizarrError, index::BasicIndexIterator, metadata::{DataType, Extension, NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}, zarray::ZArray
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -29,7 +29,7 @@ where
     T: ReadableStore + ListableStore + WriteableStore,
 {
     store: &'a T,
-    codecs: CodecRegistry,
+    codec_registry: CodecRegistry,
     pub metadata: ArrayMetadata,
     pub path: String,
 }
@@ -43,7 +43,7 @@ where
     pub async fn open(
         store: &'a T,
         path: Option<String>,
-        codecs: Option<CodecRegistry>,
+        codec_registry: Option<CodecRegistry>,
     ) -> Result<Self, CharizarrError> {
         let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
         let metadata_path = format!("{path}zarr.json");
@@ -51,11 +51,11 @@ where
         let meta = serde_json::from_slice::<ArrayMetadata>(&raw_metadata)
             .map_err(|e| CharizarrError::ArrayError(format!("Failed to parse metadata: {e}")))?;
 
-        let codecs = codecs.unwrap_or_else(|| CodecRegistry::default());
+        let codec_registry = codec_registry.unwrap_or_else(|| CodecRegistry::default());
 
         Ok(Self {
             store,
-            codecs,
+            codec_registry,
             metadata: meta,
             path,
         })
@@ -64,20 +64,53 @@ where
     pub async fn create(
         store: &'a T,
         path: Option<String>,
-        metadata: ArrayMetadata,
-        codecs: Option<CodecRegistry>,
+        codec_registry: Option<CodecRegistry>,
+        shape: Vec<usize>,
+        chunk_shape: Vec<usize>,
+        chunk_key_encoding: Option<Extension>,
+        data_type: DataType,
+        fill_value: Value,
+        codecs: Vec<Extension>,
+        dimension_names: Option<Vec<String>>,
+        attributes: Option<HashMap<String, Value>>,
     ) -> Result<Self, CharizarrError> {
         let path = path.map_or_else(|| "".to_string(), |p| format!("{p}/"));
         let metadata_path = format!("{path}zarr.json");
+
+        let chunk_key_encoding = chunk_key_encoding.unwrap_or_else(|| Extension {
+            name: "default".to_string(),
+            configuration: serde_json::json!({ "separator": "/" }),
+        });
+
+        // Only regular grids are supported for now
+        let chunk_grid = Extension {
+            name: "regular".to_string(),
+            configuration: serde_json::json!({ "chunk_shape": chunk_shape }),
+        };
+
+        let metadata = ArrayMetadata {
+            zarr_format: ZarrFormat::V3,
+            node_type: NodeType::Array,
+            shape,
+            data_type,
+            chunk_grid,
+            chunk_key_encoding,
+            fill_value,
+            codecs,
+            attributes,
+            storage_transformers: None,
+            dimension_names,
+        };
+
         let raw_metadata = serde_json::to_vec(&metadata)
             .map_err(|e| CharizarrError::ArrayError(format!("Failed to serialize metadata: {e}")))?;
         store.set(&metadata_path, &raw_metadata).await?;
 
-        let codecs = codecs.unwrap_or_else(|| CodecRegistry::default());
+        let codec_registry = codec_registry.unwrap_or_else(|| CodecRegistry::default());
 
         Ok(Self {
             store,
-            codecs,
+            codec_registry,
             metadata,
             path,
         })
@@ -94,7 +127,7 @@ where
     pub async fn get_chunk(&self, key: &str) -> Result<ZArray, CharizarrError> {
         let bytes = self.get_raw_chunk(key).await?;
         let data_type = self.dtype();
-        let chunk = decode_chunk(&self.codecs, &self.metadata.codecs, data_type, bytes)?
+        let chunk = decode_chunk(&self.codec_registry, &self.metadata.codecs, data_type, bytes)?
             .reshape(&self.chunk_shape());
         Ok(chunk)
     }
@@ -108,7 +141,7 @@ where
     /// Set a chunk in the store, encoding it according to the array's metadata
     pub async fn set_chunk(&self, key: &str, chunk: &ZArray) -> Result<(), CharizarrError> {
         let data_type = self.dtype();
-        let data = encode_chunk(&self.codecs, &self.metadata.codecs, data_type, chunk)?;
+        let data = encode_chunk(&self.codec_registry, &self.metadata.codecs, data_type, chunk)?;
         self.set_raw_chunk(&key, &data).await
     }
 

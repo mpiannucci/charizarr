@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    array::{Array, ArrayMetadata}, codec_registry::CodecRegistry, error::CharizarrError, metadata::{NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}
+    array::{Array, ArrayMetadata}, codec_registry::CodecRegistry, error::CharizarrError, metadata::{DataType, Extension, NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -12,6 +12,16 @@ pub struct GroupMetadata {
     pub zarr_format: ZarrFormat,
     pub node_type: NodeType,
     pub attributes: Option<HashMap<String, Value>>,
+}
+
+impl Default for GroupMetadata {
+    fn default() -> Self {
+        Self {
+            zarr_format: ZarrFormat::V3,
+            node_type: NodeType::Group,
+            attributes: None,
+        }
+    }
 }
 
 pub struct Group<'a, T>
@@ -71,6 +81,10 @@ where
         })
     }
 
+    pub fn attrs(&self) -> &Option<HashMap<String, Value>> {
+        &self.metadata.attributes
+    }
+
     /// The name of the group
     pub fn name(&self) -> &str {
         self.metadata
@@ -107,11 +121,32 @@ where
     pub async fn create_array(
         &self,
         name: &str,
-        metadata: ArrayMetadata,
-        codecs: Option<CodecRegistry>,
+        codec_registry: Option<CodecRegistry>,
+        shape: Vec<usize>,
+        chunk_shape: Vec<usize>,
+        chunk_key_encoding: Option<Extension>,
+        data_type: DataType,
+        fill_value: Value,
+        codecs: Vec<Extension>,
+        dimension_names: Option<Vec<String>>,
+        attributes: Option<HashMap<String, Value>>,
     ) -> Result<Array<'a, T>, CharizarrError> {
         let path = format!("{path}{name}", path = self.path);
-        Array::create(self.store, Some(path), metadata, codecs).await
+        Array::create(self.store, Some(path), codec_registry, shape, chunk_shape, chunk_key_encoding, data_type, fill_value, codecs, dimension_names, attributes).await
+    }
+
+    /// Update the attributes of the group
+    /// This will overwrite any existing attributes
+    pub async fn update_attrs(&mut self, attrs: Option<HashMap<String, Value>>) -> Result<(), CharizarrError> {
+        self.metadata.attributes = attrs;
+        self.write_metadata().await
+    }
+
+    async fn write_metadata(&self) -> Result<(), CharizarrError> {
+        let raw_metadata = serde_json::to_vec(&self.metadata).map_err(|e| CharizarrError::GroupError(e.to_string()))?;
+        let metadata_path = format!("{path}zarr.json", path = self.path);
+        self.store.set(&metadata_path, &raw_metadata).await?;
+        Ok(())
     }
 }
 
