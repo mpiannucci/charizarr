@@ -29,11 +29,10 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [ ] transpose codec
 - [ ] grib codec
 - [x] error handling
-- [ ] way more tests
+- [ ] tests, tests, tests
 - [ ] optimization
     - [x] dont clone data arrays
-    - [ ] ergonomic API for using arrays
-    - [ ] get rid of generics on hierarchies if possible
+    - [ ] ergonomic API for using arrays: Use macros for getting/setting values? conveinence methods for common operations with generics?
 
 ## Features
 
