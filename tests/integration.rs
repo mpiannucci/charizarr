@@ -62,7 +62,7 @@ async fn test_roundtrip() {
     let set_raw_data = vec![3u8, 2, 4, 5, 6, 7];
     let set_array_data = ArrayD::from_shape_vec(IxDyn(&[3, 2]), set_raw_data).unwrap();
     let chunk = ZArray::UInt8(set_array_data.clone());
-    let write_chunk = array.set_chunk("0/0", &chunk).await;
+    let write_chunk = array.set_chunk(&[0, 0], &chunk).await;
     assert!(write_chunk.is_ok());
 
     // Open the store
@@ -167,7 +167,7 @@ async fn test_read() {
     assert_eq!(&array.metadata.codecs[0].name, &"bytes");
 
     // Lets read a chunk manually for now
-    let array_chunk: ArrayD<i16> = array.get_chunk("0").await.unwrap().try_into().unwrap();
+    let array_chunk: ArrayD<i16> = array.get_chunk(&[0]).await.unwrap().try_into().unwrap();
     let expected = Array::from_vec(vec![1i16, 2, 3, 4]).into_dyn();
     assert_eq!(array_chunk, expected);
 
@@ -181,7 +181,7 @@ async fn test_read() {
     assert_eq!(array.shape(), vec![4]);
     assert_eq!(array.chunk_shape(), vec![4]);
 
-    let array_chunk: ArrayD<i16> = array.get_chunk("0").await.unwrap().try_into().unwrap();
+    let array_chunk: ArrayD<i16> = array.get_chunk(&[0]).await.unwrap().try_into().unwrap();
     assert_eq!(array_chunk, expected);
 
     // Then we'll try blosc
@@ -191,7 +191,7 @@ async fn test_read() {
         .unwrap();
     assert_eq!(&array.metadata.codecs.len(), &2);
 
-    let array_chunk: ArrayD<i16> = array.get_chunk("0").await.unwrap().try_into().unwrap();
+    let array_chunk: ArrayD<i16> = array.get_chunk(&[0]).await.unwrap().try_into().unwrap();
     assert_eq!(array_chunk, expected);
 
     // 3d

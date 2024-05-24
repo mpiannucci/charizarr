@@ -5,7 +5,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    chunk::{decode_chunk, encode_chunk}, codec_registry::{self, CodecRegistry}, error::CharizarrError, index::BasicIndexIterator, metadata::{DataType, Extension, NodeType, ZarrFormat}, store::{ListableStore, ReadableStore, WriteableStore}, zarray::ZArray
+    chunk::{decode_chunk, encode_chunk},
+    codec_registry::CodecRegistry,
+    error::CharizarrError,
+    index::BasicIndexIterator,
+    metadata::{DataType, Extension, NodeType, ZarrFormat},
+    store::{ListableStore, ReadableStore, WriteableStore},
+    zarray::ZArray,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -102,8 +108,9 @@ where
             dimension_names,
         };
 
-        let raw_metadata = serde_json::to_vec(&metadata)
-            .map_err(|e| CharizarrError::ArrayError(format!("Failed to serialize metadata: {e}")))?;
+        let raw_metadata = serde_json::to_vec(&metadata).map_err(|e| {
+            CharizarrError::ArrayError(format!("Failed to serialize metadata: {e}"))
+        })?;
         store.set(&metadata_path, &raw_metadata).await?;
 
         let codec_registry = codec_registry.unwrap_or_else(|| CodecRegistry::default());
@@ -116,32 +123,63 @@ where
         })
     }
 
+    pub fn chunk_key_separator(&self) -> &str {
+        self.metadata.chunk_key_encoding.configuration["separator"]
+            .as_str()
+            .unwrap_or("/")
+    }
+
+    /// Format the chunk key for a given chunk id, given the array's chunk key encoding
+    pub fn get_chunk_key(&self, id: &[usize]) -> String {
+        let key = id
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>()
+            .join(self.chunk_key_separator());
+        format!(
+            "{path}c{sep}{key}",
+            path = self.path,
+            sep = self.chunk_key_separator(),
+            key = key
+        )
+    }
+
     /// Get a raw chunk from the store, without decoding it
-    pub async fn get_raw_chunk(&self, key: &str) -> Result<Vec<u8>, CharizarrError> {
-        let chunk_path = format!("{path}c/{key}", path = self.path);
+    pub async fn get_raw_chunk(&self, id: &[usize]) -> Result<Vec<u8>, CharizarrError> {
+        let chunk_path = self.get_chunk_key(id);
         self.store.get(&chunk_path).await
     }
 
     /// Get a chunk from the store, decoding it according to the array's metadata
     /// and the codecs provided to the array's registry
-    pub async fn get_chunk(&self, key: &str) -> Result<ZArray, CharizarrError> {
-        let bytes = self.get_raw_chunk(key).await?;
+    pub async fn get_chunk(&self, id: &[usize]) -> Result<ZArray, CharizarrError> {
+        let bytes = self.get_raw_chunk(id).await?;
         let data_type = self.dtype();
-        let chunk = decode_chunk(&self.codec_registry, &self.metadata.codecs, data_type, bytes)?
-            .reshape(&self.chunk_shape());
+        let chunk = decode_chunk(
+            &self.codec_registry,
+            &self.metadata.codecs,
+            data_type,
+            bytes,
+        )?
+        .reshape(&self.chunk_shape());
         Ok(chunk)
     }
 
     /// Set a raw chunk in the store, without encoding it
-    pub async fn set_raw_chunk(&self, key: &str, data: &[u8]) -> Result<(), CharizarrError> {
-        let chunk_path = format!("{path}c/{key}", path = self.path);
+    pub async fn set_raw_chunk(&self, id: &[usize], data: &[u8]) -> Result<(), CharizarrError> {
+        let chunk_path = self.get_chunk_key(id);
         self.store.set(&chunk_path, data).await
     }
 
     /// Set a chunk in the store, encoding it according to the array's metadata
-    pub async fn set_chunk(&self, key: &str, chunk: &ZArray) -> Result<(), CharizarrError> {
+    pub async fn set_chunk(&self, key: &[usize], chunk: &ZArray) -> Result<(), CharizarrError> {
         let data_type = self.dtype();
-        let data = encode_chunk(&self.codec_registry, &self.metadata.codecs, data_type, chunk)?;
+        let data = encode_chunk(
+            &self.codec_registry,
+            &self.metadata.codecs,
+            data_type,
+            chunk,
+        )?;
         self.set_raw_chunk(&key, &data).await
     }
 
@@ -193,21 +231,13 @@ where
         let mut out_array = ZArray::zeros(self.dtype(), &out_shape)?;
 
         // Gather all of the chunks, create futures for fetching chunk data
-        let chunks =
-            BasicIndexIterator::new(array_shape, self.chunk_shape(), index).map(|chunk_info| {
-                let chunk_key = chunk_info
-                    .chunk_coords
-                    .iter()
-                    .map(|i| i.to_string())
-                    .collect::<Vec<String>>()
-                    .join("/");
-
-                async move {
-                    self.get_chunk(&chunk_key)
-                        .await
-                        .map(|chunk| (chunk_info, chunk))
-                }
-            });
+        let chunks = BasicIndexIterator::new(array_shape, self.chunk_shape(), index).map(
+            |chunk_info| async {
+                self.get_chunk(&chunk_info.chunk_coords)
+                    .await
+                    .map(|chunk| (chunk_info, chunk))
+            },
+        );
 
         // Trigger the fetch on all of the chunks
         let chunks = try_join_all(chunks).await?;
@@ -228,7 +258,11 @@ where
     /// This should use Index but async assosciated types are not yet stable
     ///
     /// Also maybe should use ndarray slice or sliceinfo as primitive
-    pub async fn set(&self, index: Option<Vec<Range<usize>>>, value: &ZArray) -> Result<(), CharizarrError> {
+    pub async fn set(
+        &self,
+        index: Option<Vec<Range<usize>>>,
+        value: &ZArray,
+    ) -> Result<(), CharizarrError> {
         let array_shape = self.shape();
         let chunk_shape = self.chunk_shape();
 
@@ -239,20 +273,12 @@ where
                 .collect::<Vec<Range<usize>>>()
         });
 
-        let chunks = BasicIndexIterator::new(array_shape, chunk_shape, index).map(|chunk_info| {
-            let chunk_key = chunk_info
-                .chunk_coords
-                .iter()
-                .map(|i| i.to_string())
-                .collect::<Vec<String>>()
-                .join("/");
-
-            async move {
-                self.get_chunk(&chunk_key)
+        let chunks =
+            BasicIndexIterator::new(array_shape, chunk_shape, index).map(|chunk_info| async {
+                self.get_chunk(&chunk_info.chunk_coords)
                     .await
                     .map(|chunk| (chunk_info, chunk))
-            }
-        });
+            });
 
         // Trigger the fetch on all of the chunks, then overwrite the values
         // in the chunks with the new values
@@ -260,15 +286,8 @@ where
         let new_chunks = existing_chunks
             .iter_mut()
             .map(|(chunk_info, chunk)| async move {
-                let chunk_key = chunk_info
-                    .chunk_coords
-                    .iter()
-                    .map(|i| i.to_string())
-                    .collect::<Vec<String>>()
-                    .join("/");
-
                 chunk.set(&chunk_info, &value)?;
-                self.set_chunk(&chunk_key, chunk).await
+                self.set_chunk(&chunk_info.chunk_coords, chunk).await
             });
 
         // Trigger futures, wait for all to complete

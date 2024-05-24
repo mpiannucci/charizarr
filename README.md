@@ -20,15 +20,16 @@ This crate requires rust 1.75 or later because it uses async traits.
 - [x] write zarr array chunks
 - [x] read zarr array data
 - [x] write zarr array data
-- [ ] custom separator values for group and array names
+- [x] custom chunk encoding support
 - [ ] fill values
 - [x] bytes codec
 - [x] blosc codec
 - [x] gzip codec
+- [ ] sharding codec
 - [ ] transpose codec
 - [ ] grib codec
 - [x] error handling
-- [ ] tests for store implementations
+- [ ] way more tests
 - [ ] optimization
     - [x] dont clone data arrays
     - [ ] ergonomic API for using arrays
