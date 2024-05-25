@@ -8,4 +8,6 @@
 
 [zarrita python 3.0 impl](https://github.com/scalableminds/zarrita)
 
+[zarr python 3.0 tree](https://github.com/zarr-developers/zarr-python/tree/v3)
+
 [pass features to child crates](https://stackoverflow.com/a/40021750)
