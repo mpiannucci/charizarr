@@ -135,9 +135,43 @@ where
         Array::create(self.store, Some(path), codec_registry, shape, chunk_shape, chunk_key_encoding, data_type, fill_value, codecs, dimension_names, attributes).await
     }
 
-    /// Update the attributes of the group
+    /// Add an attribute to the group
+    pub async fn add_attr(&mut self, key: String, value: Value) -> Result<(), CharizarrError> {
+        let mut attrs = self.metadata.attributes.take().unwrap_or_default();
+        attrs.insert(key, value);
+        self.metadata.attributes = Some(attrs);
+        self.write_metadata().await
+    }
+
+    /// Add multiple attributes to the group
+    pub async fn add_attrs(&mut self, attrs: HashMap<String, Value>) -> Result<(), CharizarrError> {
+        let mut existing_attrs = self.metadata.attributes.take().unwrap_or_default();
+        existing_attrs.extend(attrs);
+        self.metadata.attributes = Some(existing_attrs);
+        self.write_metadata().await
+    }
+
+    /// Remove an attribute from the group
+    pub async fn remove_attr(&mut self, key: &str) -> Result<(), CharizarrError> {
+        let mut attrs = self.metadata.attributes.take().unwrap_or_default();
+        attrs.remove(key);
+        self.metadata.attributes = Some(attrs);
+        self.write_metadata().await
+    }
+
+    /// Remove multiple attributes from the group
+    pub async fn remove_attrs(&mut self, keys: Vec<&str>) -> Result<(), CharizarrError> {
+        let mut attrs = self.metadata.attributes.take().unwrap_or_default();
+        for key in keys {
+            attrs.remove(key);
+        }
+        self.metadata.attributes = Some(attrs);
+        self.write_metadata().await
+    }
+
+    /// Set the attributes of the group
     /// This will overwrite any existing attributes
-    pub async fn update_attrs(&mut self, attrs: Option<HashMap<String, Value>>) -> Result<(), CharizarrError> {
+    pub async fn set_attrs(&mut self, attrs: Option<HashMap<String, Value>>) -> Result<(), CharizarrError> {
         self.metadata.attributes = attrs;
         self.write_metadata().await
     }

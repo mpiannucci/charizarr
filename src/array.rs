@@ -293,6 +293,54 @@ where
         // Trigger futures, wait for all to complete
         try_join_all(new_chunks).await.map(|_| ())
     }
+
+    /// Add an attribute to the group
+    pub async fn add_attr(&mut self, key: String, value: Value) -> Result<(), CharizarrError> {
+        let mut attrs = self.metadata.attributes.take().unwrap_or_default();
+        attrs.insert(key, value);
+        self.metadata.attributes = Some(attrs);
+        self.write_metadata().await
+    }
+
+    /// Add multiple attributes to the array
+    pub async fn add_attrs(&mut self, attrs: HashMap<String, Value>) -> Result<(), CharizarrError> {
+        let mut existing_attrs = self.metadata.attributes.take().unwrap_or_default();
+        existing_attrs.extend(attrs);
+        self.metadata.attributes = Some(existing_attrs);
+        self.write_metadata().await
+    }
+
+    /// Remove an attribute from the array
+    pub async fn remove_attr(&mut self, key: &str) -> Result<(), CharizarrError> {
+        let mut attrs = self.metadata.attributes.take().unwrap_or_default();
+        attrs.remove(key);
+        self.metadata.attributes = Some(attrs);
+        self.write_metadata().await
+    }
+
+    /// Remove multiple attributes from the array
+    pub async fn remove_attrs(&mut self, keys: Vec<&str>) -> Result<(), CharizarrError> {
+        let mut attrs = self.metadata.attributes.take().unwrap_or_default();
+        for key in keys {
+            attrs.remove(key);
+        }
+        self.metadata.attributes = Some(attrs);
+        self.write_metadata().await
+    }
+
+    /// Update the attributes of the array
+    /// This will overwrite any existing attributes
+    pub async fn set_attrs(&mut self, attrs: Option<HashMap<String, Value>>) -> Result<(), CharizarrError> {
+        self.metadata.attributes = attrs;
+        self.write_metadata().await
+    }
+
+    async fn write_metadata(&self) -> Result<(), CharizarrError> {
+        let raw_metadata = serde_json::to_vec(&self.metadata).map_err(|e| CharizarrError::GroupError(e.to_string()))?;
+        let metadata_path = format!("{path}zarr.json", path = self.path);
+        self.store.set(&metadata_path, &raw_metadata).await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
